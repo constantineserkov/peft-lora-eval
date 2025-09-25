@@ -24,6 +24,7 @@ def main() -> None:
     parser.add_argument("--output-path", type=str, default=r"models\<method>_best", help="Checkpoint output path")
     parser.add_argument("--wandb-project", type=str, default="llama-finetune",
                         help="Specify the WandB project name for experiment tracking")
+    parser.add_argument("--data-subset", type=int, default=100, help="Subset of the dataset to use")
 
     # parse arguments
     args = parser.parse_args()
@@ -33,8 +34,8 @@ def main() -> None:
     method = args.method
     seed = args.seed
 
-    # check the parsed data
-    if args.method.lower() not in ['lora', 'qlora', 'qdora']:
+    # verify argument parsing
+    if args.method.lower() not in ['lora', 'qlora', 'qdora', 'base']:
         pass  # warning
 
 
