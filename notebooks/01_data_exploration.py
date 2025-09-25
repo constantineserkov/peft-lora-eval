@@ -51,43 +51,45 @@ dataset = load_dataset(dataset_name, split="train", streaming=False).remove_colu
 def format_prompt(batch):
     prompts = []
     for inst in batch['instruction']:
-        prompt = "Below is an instruction that describes a task. Write a response that appropriately completes " \
-                 "the request.\n\n###Instruction:\n{inst}\n\n###Response:\n"
+        prompt = f"Below is an instruction that describes a task. Write a response that appropriately completes " \
+                 f"the request.\n\n###Instruction: \n{inst}\n\n###Response: \n"
         prompts.append(prompt)
     return {'prompt': prompts}
 
 
 formatted_dataset = dataset.map(format_prompt, batched=True, batch_size=10000)
 
-# Commented out IPython magic to ensure Python compatibility.
-# %%capture
-# # Tokenize
-# def tokenize(batch, tokenizer):
-#     full_texts = [prompt + output + tokenizer.eos_token for prompt, output in zip(batch['prompt'], batch['output'])]
-#     tokenized_all = tokenizer(full_texts)
-#     tokenized_prompts = tokenizer(batch['prompt'])
-#     prompt_lens = [len(ids) for ids in tokenized_prompts['input_ids']]
-#     labels = []
-#     for full_ids, p_len in zip(tokenized_all['input_ids'], prompt_lens):
-#         label = [-100] * p_len + full_ids[p_len:]
-#         labels.append(label)
-#     return {
-#         'input_ids': tokenized_all['input_ids'],
-#         'attention_mask': tokenized_all['attention_mask'],
-#         'labels': labels
-#     }
-# 
-# tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path=model_name)
-# tokenizer.pad_token = tokenizer.eos_token
-# tokenized_dataset = formatted_dataset.map(tokenize, batched=True, batch_size=10000,
-#                                 fn_kwargs={"tokenizer": tokenizer})
-# 
-# # Add sequence length column and sort
-# def add_length(example):
-#     return {'length': len(example['input_ids'])}
-# 
-# tokenized_dataset = tokenized_dataset.map(add_length).sort('length')
-# tokenized_dataset = tokenized_dataset.remove_columns(['instruction', 'output', 'length', 'prompt'])
+
+# Tokenize
+def tokenize(batch, tokenizer):
+    full_texts = [prompt + output + tokenizer.eos_token for prompt, output in zip(batch['prompt'], batch['output'])]
+    tokenized_all = tokenizer(full_texts)
+    tokenized_prompts = tokenizer(batch['prompt'])
+    prompt_lens = [len(ids) for ids in tokenized_prompts['input_ids']]
+    labels = []
+    for full_ids, p_len in zip(tokenized_all['input_ids'], prompt_lens):
+        label = [-100] * p_len + full_ids[p_len:]
+        labels.append(label)
+    return {
+        'input_ids': tokenized_all['input_ids'],
+        'attention_mask': tokenized_all['attention_mask'],
+        'labels': labels
+    }
+
+tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path=model_name)
+tokenizer.pad_token = tokenizer.eos_token
+tokenized_dataset = formatted_dataset.map(tokenize, batched=True, batch_size=10000,
+                                          fn_kwargs={"tokenizer": tokenizer})
+
+
+# Add sequence length column and sort
+def add_length(example):
+    return {'length': len(example['input_ids'])}
+
+
+tokenized_dataset = tokenized_dataset.map(add_length).sort('length')
+tokenized_dataset = tokenized_dataset.remove_columns(['instruction', 'output', 'length', 'prompt'])
+
 
 class DataCollatorForCustomPadding:
     def __init__(self, tokenizer, pad_to_multiple_of=None):
@@ -116,7 +118,6 @@ class DataCollatorForCustomPadding:
             # Pad labels with -100 (ignored in loss)
             labels_padded.append(example['labels'] + padding_length * [-100])
 
-
         for i, el in enumerate(input_ids_padded):
             # print(f"checkpoint {i}")
             if isinstance(el, str):
@@ -137,7 +138,7 @@ train_loader = DataLoader(dataset=tokenized_dataset, batch_size=batch_size, pin_
 """Training"""
 
 model = AutoModelForCausalLM.from_pretrained(model_name, low_cpu_mem_usage=True, dtype=torch.float16,
-    offload_folder="offload")
+                                             offload_folder="offload")
 
 peft_config = LoraConfig(task_type=TaskType.CAUSAL_LM, inference_mode=False, r=4, lora_alpha=8, use_rslora=True, target_modules=['q_proj', 'v_proj'])
 
@@ -156,54 +157,53 @@ scheduler = transformers.get_linear_schedule_with_warmup(optimizer=optimizer, nu
 
 model.to(device)
 
-# Commented out IPython magic to ensure Python compatibility.
-# %%time
-# for epoch in range(1, num_epochs+1):
-#     train_losses = []
-#     log_every = 500
-#     running_loss = 0
-# 
-#     print(f"\n\n<<<@@@### EPOCH {epoch} ###@@@>>>\n\n")
-# 
-#     model.train()
-#     for step, batch in enumerate(train_loader):
-#         input_ids, attention_mask, labels = batch['input_ids'].to(device), batch['attention_mask'].to(device), batch['labels'].to(device)
-#         with autocast(dtype=torch.float16):
-#             outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
-#             loss = outputs.loss / grad_accumulation_steps
-# 
-#         # Backward pass with scaled loss
-#         scaler.scale(loss).backward()
-# 
-#         running_loss += loss.item()
-# 
-#         # gradient accumulation
-#         if step % grad_accumulation_steps == 0:
-#             # clip grads *after* scaling
-#             scaler.unscale_(optimizer)
-#             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-# 
-#             scaler.step(optimizer)
-#             scaler.update()
-#             scheduler.step()
-#             optimizer.zero_grad()
-# 
-#         if (step+1) % log_every == 0:
-#             print(f"Step {step+1}: average loss = {running_loss / log_every}")
-#             running_loss = 0
-# 
-#     # check for a leftover
-#     if (step + 1) % grad_accumulation_steps != 0:
-#         scaler.unscale_(optimizer)
-#         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-#         scaler.step(optimizer)
-#         scaler.update()
-#         scheduler.step()
-#         optimizer.zero_grad()
-# 
-#     epoch_loss = sum(train_losses) / len(train_losses)
-#     print(f"\n\nEpoch {epoch} average loss: {epoch_loss}\n\n")
-# 
-#     # release unused cached memory back to the GPU
-#     torch.cuda.empty_cache()
+
+for epoch in range(1, num_epochs+1):
+    train_losses = []
+    log_every = 500
+    running_loss = 0
+
+    print(f"\n\n<<<@@@### EPOCH {epoch} ###@@@>>>\n\n")
+
+    model.train()
+    for step, batch in enumerate(train_loader):
+        input_ids, attention_mask, labels = batch['input_ids'].to(device), batch['attention_mask'].to(device), batch['labels'].to(device)
+        with autocast(dtype=torch.float16):
+            outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+            loss = outputs.loss / grad_accumulation_steps
+
+        # Backward pass with scaled loss
+        scaler.scale(loss).backward()
+
+        running_loss += loss.item()
+
+        # gradient accumulation
+        if step % grad_accumulation_steps == 0:
+            # clip grads *after* scaling
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+
+            scaler.step(optimizer)
+            scaler.update()
+            scheduler.step()
+            optimizer.zero_grad()
+
+        if (step+1) % log_every == 0:
+            print(f"Step {step+1}: average loss = {running_loss / log_every}")
+            running_loss = 0
+
+    # check for a leftover
+    if (step + 1) % grad_accumulation_steps != 0:
+        scaler.unscale_(optimizer)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        scaler.step(optimizer)
+        scaler.update()
+        scheduler.step()
+        optimizer.zero_grad()
+
+    epoch_loss = sum(train_losses) / len(train_losses)
+    print(f"\n\nEpoch {epoch} average loss: {epoch_loss}\n\n")
+
+    # release unused cached memory back to the GPU
+    torch.cuda.empty_cache()
 

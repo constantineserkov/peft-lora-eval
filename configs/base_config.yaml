@@ -1,0 +1,37 @@
+# configs/base_config.yaml
+
+# Model configuration
+model:
+  model_name_or_path: "meta-llama/Llama-3.2-3B"
+
+# Dataset configuration
+dataset:
+  dataset_name: "yahma/alpaca-cleaned"
+
+dataloader:
+  batch_size: 4
+
+# Training configuration
+training:
+  lr: 1e-4
+  num_epochs: 3
+  grad_accumulation_steps: 4
+  optimizer:
+    weight_decay: 0.01
+    betas: [0.9, 0.95]
+    eps: 1e-8
+
+# LoRA configuration
+lora:
+  r: 4
+  lora_alpha: 8
+  use_rslora: True
+  target_modules: ['q_proj', 'v_proj']
+
+# Logging & experiment tracking
+logging:
+  log_every: 500
+  checkpoint_steps: 500
+
+# Misc
+#seed: 17
