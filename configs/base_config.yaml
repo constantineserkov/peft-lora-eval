@@ -1,5 +1,8 @@
 # configs/base_config.yaml
 
+# PEFT method
+method: "lora"
+
 # Model configuration
 model:
   model_name_or_path: "meta-llama/Llama-3.2-3B"
@@ -34,4 +37,3 @@ logging:
   checkpoint_steps: 500
 
 # Misc
-#seed: 17
