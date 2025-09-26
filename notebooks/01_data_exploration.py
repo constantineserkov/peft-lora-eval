@@ -19,18 +19,18 @@ from peft import LoraConfig, TaskType, get_peft_model
 from typing import Dict, List, Any
 
 
-# Seed setting
-def set_seed(seed):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    transformers.set_seed(seed)
-    # Ensure deterministic behaviour on CUDA
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    # Warn if non-deterministic algorithms are used
-    torch.use_deterministic_algorithms(True, warn_only=True)
+# # Seed setting
+# def set_seed(seed):
+#     random.seed(seed)
+#     np.random.seed(seed)
+#     torch.manual_seed(seed)
+#     torch.cuda.manual_seed_all(seed)
+#     transformers.set_seed(seed)
+#     # Ensure deterministic behaviour on CUDA
+#     torch.backends.cudnn.deterministic = True
+#     torch.backends.cudnn.benchmark = False
+#     # Warn if non-deterministic algorithms are used
+#     torch.use_deterministic_algorithms(True, warn_only=True)
 
 
 SEED = 17

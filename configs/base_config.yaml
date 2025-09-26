@@ -1,7 +1,9 @@
 # configs/base_config.yaml
 
+project_name: "peft_lora_eval"
+
 # PEFT method
-method: "lora"
+method: "base"
 
 # Model configuration
 model:
@@ -36,5 +38,6 @@ logging:
   log_every: 500
   checkpoint_steps: 500
   log_level: "INFO"
+  use_wandb: True  # 'True' to log
 
 # Misc
