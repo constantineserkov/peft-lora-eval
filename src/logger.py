@@ -20,7 +20,7 @@ def set_up_logging(log_filename: str = "results/logs/project.log"):
             }
     ))
 
-    file_handler = logging.FileHandler()
+    file_handler = logging.FileHandler(log_filename)
     file_handler.setFormatter(logging.Formatter(
         "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
     ))
