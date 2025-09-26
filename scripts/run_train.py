@@ -1,20 +1,29 @@
+import logging
+import warnings
+
+# Ignore this specific FutureWarning from torch.cuda
+warnings.filterwarnings(
+    "ignore",
+    category=FutureWarning,
+    module=r"torch\.cuda"
+)
+
 import argparse
 import yaml
 import torch
 import wandb
-import logging
 from src.data_loader import load_alpaca_data
 from src.model_utils import configure_peft_model
 from src.trainer import train_model
 import sys
+from yaml import safe_load
+import os
+from src.logger import set_up_logging, get_logger
+
+logger = get_logger()
 
 
-def main() -> None:
-    """
-    Colab: The default (/content/llama-alpaca-finetune/models/lora_best) is temporary and lost after session ends.
-    To persist, users can override with --output_dir /content/drive/MyDrive/llama_checkpoints/lora
-    (requires Drive mounting).
-    """
+def parse_args():
     parser = argparse.ArgumentParser(description="Run Llama 3.2 3B fine-tune")
 
     # add arguments
@@ -26,24 +35,56 @@ def main() -> None:
                         help="Specify the WandB project name for experiment tracking")
     parser.add_argument("--data-subset", type=int, default=100, help="Subset of the dataset to use")
 
-    # parse arguments
-    args = parser.parse_args()
+    logger.info("successfully parsed args")
+
+    # return the parsed args
+    return parser.parse_args()
+
+def verify_parsed_args(args):
+    # verify argument parsing
+    if args.method.lower() not in ['lora', 'qlora', 'qdora', 'base']:
+        msg = f"Invalid method '{args.method}'. Choose from: lora, qlora, qdora, base."
+        logger.error(msg)
+        raise ValueError(f"Invalid method '{args.method}'. Choose from: lora, qlora, qdora, base.")
+
+    if not isinstance(args.seed, int):
+        raise ValueError(f"Invalid seed '{args.seed}'. Must be integer.")
+
+    if os.path.exists(os.path.join("./", args.config_path)):
+        msg = f"Invalid config_path '{args.config_path}'. Use existing config from 'configs/' directory"
+        logger.error(msg)
+        raise FileNotFoundError(msg)
+
+# load config and verify argument parsing
+def load_config(args):
+    # verify arguments
+    verify_parsed_args(args)
 
     # configure config path, peft method, seed
     config_path = args.config_path
     method = args.method
     seed = args.seed
 
-    # verify argument parsing
-    if args.method.lower() not in ['lora', 'qlora', 'qdora', 'base']:
-        pass  # warning
 
 
+    root_dir = "./"
+    with open(os.path.join(root_dir, config_path), "r") as f:
+        config_dict = safe_load(f)
+        config_dict['method'] = method
+        config_dict['seed'] = seed
+
+    logging.info(f"Parsed args: \nconfig_path: {config_path}\nmethod: {method}\nseed: {seed}\n\n"
+                 f"Config_dict: \n{config_dict}")
+    return config_dict
 
 
+def main():
+    # set up baseConfig
+    set_up_logging()
 
+    # load config
+    args = parse_args()
+    config = load_config(args)
 
-
-
-    if __name__ == "__main__":
-        main()
+if __name__ == "__main__":
+    main()
