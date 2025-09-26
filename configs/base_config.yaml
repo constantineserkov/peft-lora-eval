@@ -35,5 +35,6 @@ lora:
 logging:
   log_every: 500
   checkpoint_steps: 500
+  log_level: "INFO"
 
 # Misc
