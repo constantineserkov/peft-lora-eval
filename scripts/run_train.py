@@ -20,6 +20,9 @@ from yaml import safe_load
 import os
 from src.logger import set_up_logging, get_logger
 from src.utils import set_seed
+from src.data_loader import (load_alpaca_data, format_prompt, tokenize, add_length,
+                             get_cleaned_sorted_dataset, get_dataloader)
+from transformers import AutoTokenizer
 
 logger = get_logger()
 
@@ -41,6 +44,7 @@ def parse_args():
     return parser.parse_args()
 
 def verify_parsed_args(args):
+    # NOT COMPLETE
     # verify argument parsing
     if args.method.lower() not in ['lora', 'qlora', 'qdora', 'base']:
         msg = f"Invalid method '{args.method}'. Choose from: lora, qlora, qdora, base."
@@ -49,11 +53,6 @@ def verify_parsed_args(args):
 
     if not isinstance(args.seed, int):
         raise ValueError(f"Invalid seed '{args.seed}'. Must be integer.")
-
-    # if not os.path.exists(os.path.join("./", args.config_path)):
-    #     msg = f"Invalid config_path '{args.config_path}'. Use existing config from 'configs/' directory"
-    #     logger.error(msg)
-    #     raise FileNotFoundError(msg)
 
 
 # load config and verify argument parsing
@@ -65,17 +64,13 @@ def load_config(args):
     # verify arguments
     verify_parsed_args(args)
 
-    # variables
-    method = args.method
-    seed = args.seed
-    output_path = args.output_path
-    project_name = args.wandb_project
-    data_subset = args.data_subset
-
     with open(os.path.join(root_dir, config_path), "r") as f:
         config_dict = safe_load(f)
-        config_dict['method'] = method
-        config_dict['seed'] = seed
+        config_dict['method'] = args.method
+        config_dict['seed'] = args.seed
+        config_dict['output_path'] = args.output_path
+        config_dict['project_name'] = args.project_name
+        config_dict['data_subset'] = args.data_subset
 
     logging.info(f"Parsed args: \nconfig_path: {config_path}\nmethod: {method}\nseed: {seed}\n\n"
                  f"Config_dict: \n{config_dict}")
@@ -105,17 +100,7 @@ def check_wandb_api_key():
         return False
 
 
-def main():
-    # set up baseConfig
-    set_up_logging()
-
-    # load config
-    args = parse_args()
-    config = load_config(args)
-
-    # set seed
-    set_seed(config['seed'])
-
+def init_wandb(config):
     # W&B initialization if enabled
     use_wandb = config.get('logging', {}).get('use_wandb', False)
     if use_wandb:
@@ -129,6 +114,55 @@ def main():
             logger.warning("WandB API key not set; skipping logging")
     else:
         logger.warning("W&B logging disabled.")
+
+
+def main():
+    # set up baseConfig
+    set_up_logging()
+
+    # load config
+    args = parse_args()
+    config = load_config(args)
+    data_subset = config['data_subset']
+
+    # set seed
+    set_seed(config['seed'])
+
+    # init wandb
+    init_wandb(config)
+
+    # load dataset
+    dataset = load_alpaca_data(
+        dataset_name=config['dataset_name'],
+        data_subset=config['data_subset']
+    )
+
+    # format dataset -> formatted dataset
+    dataset = dataset.map(format_prompt, batched=True, batch_size=100)
+
+    # init tokenizer and tokenize dataset
+    tokenizer = AutoTokenizer.from_pretrained(config['model']['model_name_or_path'])
+    tokenized_dataset = dataset.map(
+        tokenize,
+        batched=True,
+        batch_size=100,
+        fn_kwargs={"tokenizer": tokenizer})
+
+    # sort dataset by length
+    dataset = tokenized_dataset.map(add_length).map(get_cleaned_sorted_dataset)
+
+    loader = get_dataloader(dataset,
+                            tokenizer,
+                            batch_size=config['data_loader']['batch_size'],
+                            seed=config['seed']
+                            )
+
+
+
+
+
+
+
 
 
 if __name__ == "__main__":
