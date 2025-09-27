@@ -22,9 +22,17 @@ from src.logger import set_up_logging, get_logger
 from src.utils import set_seed
 from src.data_loader import (load_alpaca_data, format_prompt, tokenize, add_length,
                              get_cleaned_sorted_dataset, get_dataloader)
+from src.trainer import train_model
+from src.model_utils import configure_peft_model
 from transformers import AutoTokenizer
 
 logger = get_logger()
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+# warn if device is not cuda
+if device != "cuda":
+    logger.warning("Be careful! Cuda is not available.")
 
 
 def parse_args():
@@ -46,7 +54,7 @@ def parse_args():
 def verify_parsed_args(args):
     # NOT COMPLETE
     # verify argument parsing
-    if args.method.lower() not in ['lora', 'qlora', 'qdora', 'base']:
+    if args.method.lower() not in ['lora', 'qlora', 'dora', 'qdora', 'base']:
         msg = f"Invalid method '{args.method}'. Choose from: lora, qlora, qdora, base."
         logger.error(msg)
         raise ValueError(f"Invalid method '{args.method}'. Choose from: lora/qlora/qdora/base.")
@@ -66,13 +74,13 @@ def load_config(args):
 
     with open(os.path.join(root_dir, config_path), "r") as f:
         config_dict = safe_load(f)
-        config_dict['method'] = args.method
+        config_dict['method'] = args.method.lower()
         config_dict['seed'] = args.seed
         config_dict['output_path'] = args.output_path
         config_dict['project_name'] = args.project_name
         config_dict['data_subset'] = args.data_subset
 
-    logging.info(f"Parsed args: \nconfig_path: {config_path}\nmethod: {method}\nseed: {seed}\n\n"
+    logging.info(f"Parsed args: \nconfig_path: {config_path}\nmethod: {args.method}\nseed: {args.seed}\n\n"
                  f"Config_dict: \n{config_dict}")
     return config_dict
 
@@ -151,18 +159,16 @@ def main():
     # sort dataset by length
     dataset = tokenized_dataset.map(add_length).map(get_cleaned_sorted_dataset)
 
-    loader = get_dataloader(dataset,
-                            tokenizer,
-                            batch_size=config['data_loader']['batch_size'],
-                            seed=config['seed']
-                            )
+    dataloader = get_dataloader(dataset,
+                                tokenizer,
+                                batch_size=config['data_loader']['batch_size'],
+                                seed=config['seed']
+                                )
+    # init model
+    model = configure_peft_model(model_name=config['model']['model_name_or_path'], config_dict=config)
 
-
-
-
-
-
-
+    # run training
+    train_model(model, dataloader=dataloader, device=device, config_dict=config)
 
 
 if __name__ == "__main__":

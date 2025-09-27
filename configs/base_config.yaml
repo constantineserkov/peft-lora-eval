@@ -25,8 +25,8 @@ training:
     betas: [0.9, 0.95]
     eps: 1e-8
 
-# LoRA configuration
-lora:
+# PEFT configuration (LoRA)
+peft_config:
   r: 4
   lora_alpha: 8
   use_rslora: True

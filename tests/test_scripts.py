@@ -1,10 +1,6 @@
-import pytest
-import yaml
 import subprocess
 import sys
 from pathlib import Path
-
-
 
 
 def test_run_train_with_temp_config(temp_config):

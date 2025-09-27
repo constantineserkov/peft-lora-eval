@@ -9,6 +9,39 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LambdaLR
 
 
+def setup_scaler():
+    return GradScaler()
+
+
+def setup_optimizer(model: torch.nn.Module, config_dict: Dict) -> Optimizer:
+    """
+    Log optimizer settings to WandB (e.g., wandb.log({"optimizer": "AdamW", "lr": config_dict['lr']})).
+    Handle errors (e.g., missing config keys) with defaults or validation.
+    Add a docstring detailing inputs and output.
+    Validate config_dict keys to ensure all required parameters are present.
+    Allow flexibility for future optimizers (e.g., Adam for QLoRA/QDoRA if needed).
+    """
+    return torch.optim.AdamW(
+        model.parameters(),
+        lr=config_dict['lr'],
+        weight_decay=config_dict['weight_decay'],
+        betas=config_dict['betas'],
+        eps=config_dict['eps']
+    )
+
+
+def setup_scheduler(optimizer: Optimizer, config_dict: Dict) -> LambdaLR:
+    return transformers.get_linear_schedule_with_warmup(
+        optimizer=optimizer,
+        num_warmup_steps=config_dict['num_warmup_steps'],
+        num_training_steps=config_dict['num_training_steps']
+    )
+
+
+def compute_training_metrics() -> Dict:
+    return {}
+
+
 def train_model(
         model: torch.nn.Module,
         dataloader: DataLoader,
@@ -73,39 +106,6 @@ def train_model(
 
         # release unused cached memory back to the GPU
         torch.cuda.empty_cache()
-
-
-def compute_training_metrics() -> Dict:
-    return {}
-
-
-def setup_scaler():
-    return GradScaler()
-
-
-def setup_optimizer(model: torch.nn.Module, config_dict: Dict) -> Optimizer:
-    """
-    Log optimizer settings to WandB (e.g., wandb.log({"optimizer": "AdamW", "lr": config_dict['lr']})).
-    Handle errors (e.g., missing config keys) with defaults or validation.
-    Add a docstring detailing inputs and output.
-    Validate config_dict keys to ensure all required parameters are present.
-    Allow flexibility for future optimizers (e.g., Adam for QLoRA/QDoRA if needed).
-    """
-    return torch.optim.AdamW(
-        model.parameters(),
-        lr=config_dict['lr'],
-        weight_decay=config_dict['weight_decay'],
-        betas=config_dict['betas'],
-        eps=config_dict['eps']
-    )
-
-
-def setup_scheduler(optimizer: Optimizer, config_dict: Dict) -> LambdaLR:
-    return transformers.get_linear_schedule_with_warmup(
-        optimizer=optimizer,
-        num_warmup_steps=config_dict['num_warmup_steps'],
-        num_training_steps=config_dict['num_training_steps']
-    )
 
 
 def log_vram_usage(device: Optional[str]) -> float:

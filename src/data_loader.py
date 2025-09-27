@@ -20,6 +20,11 @@ def format_prompt(batch) -> Dict:
 
 
 def tokenize(batch, tokenizer: PreTrainedTokenizerBase) -> Dict:
+    if tokenizer.eos_token is None:
+        raise ValueError(
+            f"Tokenizer {tokenizer.__class__.__name__} does not define an eos_token. "
+            "Use a causal LM tokenizer (e.g., LLaMA, GPT2)."
+        )
     full_texts = [prompt + output + tokenizer.eos_token for prompt, output in zip(batch['prompt'], batch['output'])]
     tokenized_all = tokenizer(full_texts)
     tokenized_prompts = tokenizer(batch['prompt'])
