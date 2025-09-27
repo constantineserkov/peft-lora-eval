@@ -10,8 +10,7 @@ model:
   model_name_or_path: "meta-llama/Llama-3.2-3B"
 
 # Dataset configuration
-dataset:
-  dataset_name: "yahma/alpaca-cleaned"
+dataset_name: "yahma/alpaca-cleaned"
 
 dataloader:
   batch_size: 4

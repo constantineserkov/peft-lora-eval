@@ -1,13 +1,13 @@
 import torch
 from torch.utils.data import DataLoader
 from datasets import load_dataset, Dataset
-from transformers import PreTrainedTokenizer
-from typing import List, Dict, Optional
+from transformers import PreTrainedTokenizerBase
+from typing import List, Dict, Optional, Any
 
 
-def load_alpaca_data(dataset_name: str) -> Dataset:
+def load_alpaca_data(dataset_name: str, data_subset: int) -> Dataset:
     # Load dataset
-    return load_dataset(dataset_name, split="train", streaming=False).remove_columns('input')
+    return load_dataset(dataset_name, split=f"train[:{data_subset}]", streaming=False).remove_columns('input')
 
 
 def format_prompt(batch) -> Dict:
@@ -19,7 +19,7 @@ def format_prompt(batch) -> Dict:
     return {'prompt': prompts}
 
 
-def tokenize(batch, tokenizer: PreTrainedTokenizer) -> Dict:
+def tokenize(batch, tokenizer: PreTrainedTokenizerBase) -> Dict:
     full_texts = [prompt + output + tokenizer.eos_token for prompt, output in zip(batch['prompt'], batch['output'])]
     tokenized_all = tokenizer(full_texts)
     tokenized_prompts = tokenizer(batch['prompt'])
@@ -45,7 +45,7 @@ def get_cleaned_sorted_dataset(dataset):
 
 def get_dataloader(
         tokenized_dataset: Dataset,
-        tokenizer: PreTrainedTokenizer,
+        tokenizer: PreTrainedTokenizerBase,
         batch_size: int,
         seed: int,
         pad_to_multiple_of: Optional[int] = None
