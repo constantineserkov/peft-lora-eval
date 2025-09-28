@@ -25,6 +25,7 @@ from src.data_loader import (load_alpaca_data, format_prompt, tokenize, add_leng
 from src.trainer import train_model
 from src.model_utils import configure_peft_model
 from transformers import AutoTokenizer
+from huggingface_hub import login as hf_login, HfFolder
 
 logger = get_logger()
 
@@ -32,15 +33,14 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 # warn if device is not cuda
 if device != "cuda":
-    logger.warning("Be careful! Cuda is not available.")
+    logger.warning("Cuda is not available.")
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run Llama 3.2 3B fine-tune")
 
     # add arguments
-    # parser.add_argument("--config-path", type=str, default=r"configs\base_config.yaml", help="Path to config YAML file")
-    parser.add_argument("--method", type=str, default="base", help="Method name (LoRA/QLoRA/QDoRA)")
+    parser.add_argument("--method", type=str, default="lora", help="Method name (LoRA/QLoRA/QDoRA)")
     parser.add_argument("--seed", type=int, default=17, help="Seed number")
     parser.add_argument("--output-path", type=str, default=r"models\<method>_best", help="Checkpoint output path")
     parser.add_argument("--wandb-project", type=str, default="llama-finetune",
@@ -77,7 +77,6 @@ def load_config(args):
         config_dict['method'] = args.method.lower()
         config_dict['seed'] = args.seed
         config_dict['output_path'] = args.output_path
-        config_dict['project_name'] = args.project_name
         config_dict['data_subset'] = args.data_subset
 
     logging.info(f"Parsed args: \nconfig_path: {config_path}\nmethod: {args.method}\nseed: {args.seed}\n\n"
@@ -124,6 +123,41 @@ def init_wandb(config):
         logger.warning("W&B logging disabled.")
 
 
+def check_hf_token():
+    # 1. Check environment variable
+    token = os.environ.get("HUGGINGFACE_HUB_TOKEN")
+    if token:
+        return True
+
+    # 2. Check Hugging Face token in default folder
+    try:
+        token = HfFolder.get_token()
+        if token:
+            logger.info("Hugging Face token is set")
+            return True
+        else:
+            logger.info("No Hugging Face token found")
+    except Exception as e:
+        logger.error(f"Error checking Hugging Face token: {e}")
+
+    # 3. No token found, prompt user to log in
+    logger.info("No Hugging Face token found. Please log in.")
+    try:
+        hf_login()
+        logger.info("Hugging Face login successful")
+        return True
+    except Exception:
+        logger.error("Hugging Face token not set; skipping model download")
+        return False
+
+
+def init_hf_auth():
+    if check_hf_token():
+        logger.info("Hugging Face authentication ready.")
+    else:
+        logger.warning("Proceeding without Hugging Face token. Gated models will be inaccessible.")
+
+
 def main():
     # set up baseConfig
     set_up_logging()
@@ -148,8 +182,12 @@ def main():
     # format dataset -> formatted dataset
     dataset = dataset.map(format_prompt, batched=True, batch_size=100)
 
+    # Hugging Face auth
+    init_hf_auth()
+
     # init tokenizer and tokenize dataset
     tokenizer = AutoTokenizer.from_pretrained(config['model']['model_name_or_path'])
+    tokenizer.pad_token = tokenizer.eos_token
     tokenized_dataset = dataset.map(
         tokenize,
         batched=True,
@@ -158,7 +196,8 @@ def main():
 
     # sort dataset by length
     dataset = tokenized_dataset.map(add_length).map(get_cleaned_sorted_dataset)
-
+    logger.debug(f"tokenized dataset sample: {dataset[:3]}")
+    # add train_test_split and configure two dataloaders
     dataloader = get_dataloader(dataset,
                                 tokenizer,
                                 batch_size=config['data_loader']['batch_size'],
