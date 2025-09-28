@@ -73,26 +73,6 @@ def test_get_cleaned_sorted_dataset(tokenizer, small_dataset):
         assert col not in cleaned.column_names
 
 
-# def test_data_collator_padding(tokenizer):
-#     collator = DataCollatorForCustomPadding(tokenizer, pad_to_multiple_of=8)
-#     batch = [
-#         {
-#             "input_ids": [1, 2, 3],
-#             "attention_mask": [1, 1, 1],
-#             "labels": [1, -100, 2],
-#         },
-#         {
-#             "input_ids": [1, 2],
-#             "attention_mask": [1, 1],
-#             "labels": [1, 2],
-#         },
-#     ]
-#     result = collator(batch)
-#     assert isinstance(result, dict)
-#     assert all(isinstance(v, torch.Tensor) for v in result.values())
-#     assert result["input_ids"].shape[1] % 8 == 0  # padded correctly
-
-
 # def test_get_dataloader(tokenizer, small_dataset):
 #     prompts = format_prompt(small_dataset[:2])
 #     tmp_ds = small_dataset.add_column("prompt", prompts["prompt"])

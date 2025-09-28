@@ -3,11 +3,19 @@ from torch.utils.data import DataLoader
 from datasets import load_dataset, Dataset
 from transformers import PreTrainedTokenizerBase
 from typing import List, Dict, Optional, Any
+from src.logger import get_logger
+
+logger = get_logger()
 
 
 def load_alpaca_data(dataset_name: str, data_subset: int) -> Dataset:
     # Load dataset
-    return load_dataset(dataset_name, split=f"train[:{data_subset}]", streaming=False).remove_columns('input')
+    dataset = load_dataset(dataset_name, split=f"train[:{data_subset}]", streaming=False, cache_dir="../data/processed").remove_columns('input')
+
+    # Log the dataset size
+    logger.info(f"Loaded dataset '{dataset_name}' with {len(dataset)} examples.")
+
+    return dataset
 
 
 def format_prompt(batch) -> Dict:
