@@ -9,7 +9,6 @@ warnings.filterwarnings(
 )
 
 import argparse
-import yaml
 import torch
 import wandb
 from src.data_loader import load_alpaca_data
@@ -24,12 +23,14 @@ from src.data_loader import (load_alpaca_data, format_prompt, tokenize, add_leng
                              get_cleaned_sorted_dataset, get_dataloader)
 from src.trainer import train_model
 from src.model_utils import configure_peft_model
+from src.utils import get_num_warmup_steps, get_num_training_steps
 from transformers import AutoTokenizer
 from huggingface_hub import login as hf_login, HfFolder
 
 logger = get_logger()
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
+logger.info(f"Device: {device}")
 
 # warn if device is not cuda
 if device != "cuda":
@@ -40,6 +41,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Run Llama 3.2 3B fine-tune")
 
     # add arguments
+    parser.add_argument("--mode", type=str, default="test", help="Mode: run/test (run for training, test for testing the pipeline")
     parser.add_argument("--method", type=str, default="lora", help="Method name (LoRA/QLoRA/QDoRA)")
     parser.add_argument("--seed", type=int, default=17, help="Seed number")
     parser.add_argument("--output-path", type=str, default=r"models\<method>_best", help="Checkpoint output path")
@@ -74,6 +76,7 @@ def load_config(args):
 
     with open(os.path.join(root_dir, config_path), "r") as f:
         config_dict = safe_load(f)
+        config_dict['mode'] = args.mode.lower()
         config_dict['method'] = args.method.lower()
         config_dict['seed'] = args.seed
         config_dict['output_path'] = args.output_path
@@ -143,7 +146,7 @@ def check_hf_token():
     # 3. No token found, prompt user to log in
     logger.info("No Hugging Face token found. Please log in.")
     try:
-        hf_login()
+        hf_login("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")  # temporary
         logger.info("Hugging Face login successful")
         return True
     except Exception:
@@ -179,14 +182,18 @@ def main():
         data_subset=config['data_subset']
     )
 
-    # format dataset -> formatted dataset
+    # Format dataset -> formatted dataset
     dataset = dataset.map(format_prompt, batched=True, batch_size=100)
 
     # Hugging Face auth
     init_hf_auth()
 
-    # init tokenizer and tokenize dataset
-    tokenizer = AutoTokenizer.from_pretrained(config['model']['model_name_or_path'])
+    # Init tokenizer and tokenize dataset
+    if config['mode'] == "test":
+        tokenizer = AutoTokenizer.from_pretrained("gpt2")
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(config['model']['model_name_or_path'])
+
     tokenizer.pad_token = tokenizer.eos_token
     tokenized_dataset = dataset.map(
         tokenize,
@@ -195,16 +202,28 @@ def main():
         fn_kwargs={"tokenizer": tokenizer})
 
     # sort dataset by length
-    dataset = tokenized_dataset.map(add_length).map(get_cleaned_sorted_dataset)
+    dataset = tokenized_dataset.map(add_length)
+    dataset = get_cleaned_sorted_dataset(dataset)
+
     logger.debug(f"tokenized dataset sample: {dataset[:3]}")
+
     # add train_test_split and configure two dataloaders
+
+    # load dataloaders
     dataloader = get_dataloader(dataset,
                                 tokenizer,
-                                batch_size=config['data_loader']['batch_size'],
-                                seed=config['seed']
+                                batch_size=config["dataloader"]["batch_size"],
+                                seed=config["seed"]
                                 )
+
     # init model
-    model = configure_peft_model(model_name=config['model']['model_name_or_path'], config_dict=config)
+    model = configure_peft_model(config_dict=config, device=device)
+
+    # trainer config setup
+    config['training']['num_training_steps'] = get_num_training_steps(dataloader, config)
+    config['training']['scheduler']['num_warmup_steps'] = get_num_warmup_steps(
+        num_training_steps=config['training']['num_training_steps']
+    )
 
     # run training
     train_model(model, dataloader=dataloader, device=device, config_dict=config)

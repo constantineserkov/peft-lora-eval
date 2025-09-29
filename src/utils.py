@@ -28,7 +28,7 @@ def set_seed(seed):
 
 
 def get_num_training_steps(dataloader: DataLoader, config_dict: Dict):
-    return config_dict['num_epochs'] * (len(dataloader) // config_dict['grad_accumulation_steps'])
+    return config_dict['training']['num_epochs'] * (len(dataloader) // config_dict['training']['grad_accumulation_steps'])
 
 
 def get_num_warmup_steps(num_training_steps: int) -> int:

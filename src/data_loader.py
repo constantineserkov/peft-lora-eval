@@ -49,6 +49,7 @@ def tokenize(batch, tokenizer: PreTrainedTokenizerBase) -> Dict:
 
 
 def add_length(example: Dict) -> Dict:
+    logger.debug("Length col has been added")
     return {'length': len(example['input_ids'])}
 
 

@@ -17,13 +17,16 @@ dataloader:
 
 # Training configuration
 training:
-  lr: 1e-4
+  lr: 0.0001
   num_epochs: 3
+  num_training_steps: 0
   grad_accumulation_steps: 4
   optimizer:
     weight_decay: 0.01
     betas: [0.9, 0.95]
-    eps: 1e-8
+    eps: 0.00000007
+  scheduler:
+    num_warmup_steps: 0
 
 # PEFT configuration (LoRA)
 peft_config:
