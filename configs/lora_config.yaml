@@ -2,8 +2,10 @@
 
 project_name: "peft_lora_eval"
 
+mode: "lora"
+
 # PEFT method
-method: "base"
+method: "lora"
 
 # Model configuration
 model:
