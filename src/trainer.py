@@ -1,4 +1,3 @@
-import logging
 import wandb
 import torch
 import numpy as np
@@ -11,6 +10,7 @@ from torch.optim.lr_scheduler import LambdaLR
 from src.logger import get_logger
 from bitsandbytes.optim import PagedAdamW8bit
 import pynvml
+from tqdm import tqdm
 
 logger = get_logger()
 
@@ -20,20 +20,20 @@ def setup_scaler():
 
 
 def setup_optimizer(model: torch.nn.Module, config_dict: Dict) -> Optimizer:
-    return torch.optim.AdamW(
-        model.parameters(),
-        lr=config_dict['training']['lr'],
-        weight_decay=config_dict['training']['optimizer']['weight_decay'],
-        betas=config_dict['training']['optimizer']['betas'],
-        eps=config_dict['training']['optimizer']['eps']
-    )
-    # return PagedAdamW8bit(
+    # return torch.optim.AdamW(
     #     model.parameters(),
     #     lr=config_dict['training']['lr'],
     #     weight_decay=config_dict['training']['optimizer']['weight_decay'],
     #     betas=config_dict['training']['optimizer']['betas'],
-    #     eps=config_dict['training']['optimizer']['eps'],
+    #     eps=config_dict['training']['optimizer']['eps']
     # )
+    return PagedAdamW8bit(
+        torch.Tensor(model.parameters()),  # why tensor?
+        lr=config_dict['training']['lr'],
+        weight_decay=config_dict['training']['optimizer']['weight_decay'],
+        betas=config_dict['training']['optimizer']['betas'],
+        eps=config_dict['training']['optimizer']['eps'],
+    )
 
 
 
@@ -48,7 +48,7 @@ def setup_scheduler(optimizer: Optimizer, config_dict: Dict) -> LambdaLR:
 def compute_training_metrics(
         avg_train_loss: float,
         avg_eval_loss: float,
-        device_index: Optional[int]
+        device_index: Optional[int] = 0,
 ) -> Dict[str, float]:
     """
     Computes the following metrics:
@@ -72,12 +72,25 @@ def compute_training_metrics(
     }
 
 
+# Log VRAM with pynvml
+def log_vram_usage(device_index: int = 0) -> float:
+    handle = pynvml.nvmlDeviceGetHandleByIndex(device_index)
+    mem_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
+    return mem_info / (1024 ** 3)  # GB
+
+
+# Save model's checkpoints to disk each N num_steps
+def save_checkpoint(num_steps: int) -> None:
+    pass
+
+
 def train_model(
         model: torch.nn.Module,
-        train_loader: DataLoader,
+        tokenizer: transformers.PreTrainedTokenizer,
+        train_loader: DataLoader[Dict[str, torch.Tensor]],
         device: str,
         config_dict: Dict,
-        val_loader: Optional[DataLoader] = None
+        val_loader: Optional[DataLoader] = None,
 ) -> None:
 
     logger.info(f"LR type: {type(config_dict['training']['lr'])}")
@@ -85,13 +98,23 @@ def train_model(
     optimizer = setup_optimizer(model, config_dict)
     scheduler = setup_scheduler(optimizer, config_dict)
 
+    best_loss = float("inf")
+
     for epoch in range(1, config_dict['training']['num_epochs'] + 1):
-        train_losses = []
-        log_every = 5000
+        per_epoch_metrics = {
+            "train_losses": [],
+            "val_losses": [],
+            "perplexity": [],
+            "vram_usage": [],
+        }
+        log_every = 500
         running_loss = 0
 
+        # Wrap the train loader with tqdm
+        pbar = tqdm(train_loader, desc="Training", unit="batch")  # if is off on Jupeter, set position=0
+
         step = None
-        for step, batch in enumerate(train_loader):
+        for step, batch in enumerate(pbar):
             input_ids = batch['input_ids'].to(device)
             attention_mask = batch['attention_mask'].to(device)
             labels = batch['labels'].to(device)
@@ -100,6 +123,9 @@ def train_model(
             with autocast(dtype=torch.float16):
                 outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
                 loss = outputs.loss / config_dict['training']['grad_accumulation_steps']
+
+                if not torch.isnan(loss.item()):
+                    pbar.set_description(f"Loss: {loss.item():.4f}")
 
             # Backward pass with scaled loss
             scaler.scale(loss).backward()
@@ -119,38 +145,60 @@ def train_model(
 
             if (step + 1) % log_every == 0:
                 avg_train_loss = running_loss / log_every
-                print(f"Step {step + 1}: average loss = {running_loss / log_every}")
+                per_epoch_metrics["train_losses"].append(avg_train_loss)
                 running_loss = 0
 
                 # Validation
                 if val_loader:
                     val_running_loss = 0
 
-                    for val_batch in val_loader:
-                        input_ids = batch['input_ids'].to(device)
-                        attention_mask = batch['attention_mask'].to(device)
-                        labels = batch['labels'].to(device)
+                    # Wrap the val loader with tqdm
+                    pbar_val = tqdm(val_loader, desc="Validation")
 
-                        model.eval()
-                        with autocast(dtype=torch.float16):
-                            outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
-                            val_running_loss += outputs.loss.item()
+                    with torch.no_grad():  # Disable gradients
+                        for val_batch in pbar_val:
+                            input_ids = batch['input_ids'].to(device)
+                            attention_mask = batch['attention_mask'].to(device)
+                            labels = batch['labels'].to(device)
 
-                    # Compute metrics
-                    avg_eval_loss = val_running_loss / len(val_loader)
-                    metrics = compute_training_metrics(avg_train_loss, avg_eval_loss)
+                            model.eval()
+                            with autocast(dtype=torch.float16):
+                                outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+                                loss = outputs.loss.item()
+                                val_running_loss += loss
+                                if not torch.isnan(loss):
+                                    pbar.set_description(f"Val Loss: {loss:.4f}")
 
-                    # Log metrics
-                    logger.info(f"Step: {step}\n"
-                                f"Avg. train loss: {metrics["train_loss"]}\n"
-                                f"Avg. valid. loss: {metrics["eval_loss"]}\n"
-                                f"Pefplexity: {metrics["perplexity"]}\n"
-                                f"VRAM usage: {metrics["vram_usage"]} MB")
+                        # Compute metrics
+                        avg_eval_loss = val_running_loss / len(val_loader)
+                        metrics = compute_training_metrics(avg_train_loss, avg_eval_loss)
+
+                        # Update per epoch metrics
+                        per_epoch_metrics["val_losses"].append(avg_eval_loss)
+                        per_epoch_metrics["vram_usage"].append(metrics["vram_usage"])
+
+                        # Checkpoint logic: save if best
+                        if avg_eval_loss < best_loss:
+                            best_loss = avg_eval_loss
+                            model.save_pretrained(config_dict["output_path"])
+                            tokenizer.save_pretrained(config_dict["output_path"])
+                            logger(f"New best model saved at epoch {epoch} with eval_loss: {avg_eval_loss:.4f}")
+
+                        # Log metrics
+                        current_lr = scheduler.get_last_lr()
+                        wandb.log({"lr": current_lr})
+                        logger.info(f"Step: {step}\n"
+                                    f"Avg. train loss: {metrics["train_loss"]}\n"
+                                    f"Avg. valid. loss: {metrics["eval_loss"]}\n"
+                                    f"Perplexity: {metrics["perplexity"]}\n"
+                                    f"LR: {current_lr:.1e}"
+                                    f"VRAM usage: {metrics["vram_usage"]} GB")
                 else:
                     logger.info(f"Avg. train loss: {avg_train_loss}\n"
-                                f"VRAM usage: {log_vram_usage()}")
+                                f"VRAM usage: {log_vram_usage()} GB")
 
         # check for a leftover
+        logger.debug(f"checking leftover. step == {step}")
         if (step + 1) % config_dict['training']['grad_accumulation_steps'] != 0:
             scaler.unscale_(optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
@@ -159,22 +207,23 @@ def train_model(
             scheduler.step()
             optimizer.zero_grad()
 
+        avg_train_epoch_loss = sum(per_epoch_metrics["train_losses"]) / len(per_epoch_metrics["train_losses"])  # avg of avg_train_losses
+        avg_val_epoch_loss = sum(per_epoch_metrics["val_losses"]) / len(per_epoch_metrics["val_losses"])  # avg of avg_val_losses
+        avg_perplexity = sum(per_epoch_metrics["perplexity"]) / len(per_epoch_metrics["perplexity"])
+        avg_vram_usage = sum(per_epoch_metrics["vram_usage"]) / len(per_epoch_metrics["vram_usage"])
+        data = {
+            "epoch": epoch,
+            "avg_train_epoch_loss": avg_train_epoch_loss,
+            "avg_val_epoch_loss": avg_val_epoch_loss,
+            "avg_perplexity": avg_perplexity,
+            "avg_vram_usage": avg_vram_usage,
+        }
 
-
-        epoch_loss = sum(train_losses) / len(train_losses)
-        print(f"\n\nEpoch {epoch} average loss: {epoch_loss}\n\n")
+        wandb.log(data=data)
 
         # release unused cached memory back to the GPU
         torch.cuda.empty_cache()
-        pynvml.nvmlShutdown()
+    pynvml.nvmlShutdown()
+    wandb.finish()
 
 
-def log_vram_usage(device_index: int = 0) -> float:
-    handle = pynvml.nvmlDeviceGetHandleByIndex(device_index)
-    mem_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
-    return mem_info / (1024 ** 2)  # MB
-
-
-# save model's checkpoints to disk each N num_steps
-def save_checkpoint(num_steps: int) -> None:
-    pass

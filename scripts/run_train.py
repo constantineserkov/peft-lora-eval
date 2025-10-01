@@ -58,6 +58,7 @@ def parse_args():
 
     return parser.parse_args()
 
+
 def verify_parsed_args(args):
     # NOT COMPLETE
     # verify argument parsing
@@ -257,7 +258,13 @@ def main():
     )
 
     # Run training
-    train_model(model, train_loader=train_loader, device=device, config_dict=config, val_loader=val_loader)
+    train_model(
+        model, tokenizer,
+        train_loader=train_loader,
+        device=device,
+        onfig_dict=config,
+        val_loader=val_loader
+    )
 
 
 if __name__ == "__main__":
