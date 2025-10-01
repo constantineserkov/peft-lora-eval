@@ -19,8 +19,13 @@ from yaml import safe_load
 import os
 from src.logger import set_up_logging, get_logger
 from src.utils import set_seed
-from src.data_loader import (load_alpaca_data, format_prompt, tokenize, add_length,
-                             get_cleaned_sorted_dataset, get_dataloader)
+from src.data_loader import (
+    load_alpaca_data,
+    format_prompt,
+    tokenize,
+    split_and_sort_dataset,
+    get_dataloader,
+)
 from src.trainer import train_model
 from src.model_utils import configure_peft_model
 from src.utils import get_num_warmup_steps, get_num_training_steps
@@ -201,32 +206,58 @@ def main():
         batch_size=100,
         fn_kwargs={"tokenizer": tokenizer})
 
-    # sort dataset by length
-    dataset = tokenized_dataset.map(add_length)
-    dataset = get_cleaned_sorted_dataset(dataset)
+    # Split the tokenized ds into train/val/test_ds
+    datasets = split_and_sort_dataset(
+        tokenized_dataset,
+        seed=config["seed"]
+    )
+    train_ds, val_ds, test_ds = datasets.values()
 
-    logger.debug(f"tokenized dataset sample: {dataset[:3]}")
+    logger.debug(f"Tokenized train dataset sample: {train_ds[0]}\n\n"
+                 f"Tokenized val dataset sample: {val_ds[1]}\n\n"
+                 f"Tokenized test dataset sample: {test_ds[2]}")
 
-    # add train_test_split and configure two dataloaders
+    # Load dataloaders
+    train_loader = get_dataloader(
+        train_ds,
+        tokenizer,
+        batch_size=config["dataloader"]["batch_size"],
+        seed=config["seed"],
+        )
+    val_loader = get_dataloader(
+        val_ds,
+        tokenizer,
+        batch_size=config["dataloader"]["batch_size"],
+        seed=config["seed"],
+    )
+    test_loader = get_dataloader(
+        test_ds,
+        tokenizer,
+        batch_size=config["dataloader"]["batch_size"],
+        seed=config["seed"],
+    )
 
-    # load dataloaders
-    dataloader = get_dataloader(dataset,
-                                tokenizer,
-                                batch_size=config["dataloader"]["batch_size"],
-                                seed=config["seed"]
-                                )
+    # Check what's inside of train_loader
+    logger.debug(f"train_loader: {train_loader}")
 
-    # init model
+    # # Wrap into a dict
+    # dataloaders = {
+    #     "train_loader": train_loader,
+    #     "val_loader": val_loader,
+    #     "test_loader": test_loader
+    # }
+
+    # Init model
     model = configure_peft_model(config_dict=config, device=device)
 
-    # trainer config setup
-    config['training']['num_training_steps'] = get_num_training_steps(dataloader, config)
+    # Trainer config setup
+    config['training']['num_training_steps'] = get_num_training_steps(train_loader, config)
     config['training']['scheduler']['num_warmup_steps'] = get_num_warmup_steps(
         num_training_steps=config['training']['num_training_steps']
     )
 
-    # run training
-    train_model(model, dataloader=dataloader, device=device, config_dict=config)
+    # Run training
+    train_model(model, train_loader=train_loader, device=device, config_dict=config, val_loader=val_loader)
 
 
 if __name__ == "__main__":

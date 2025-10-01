@@ -2,8 +2,9 @@ import torch
 from torch.utils.data import DataLoader
 from datasets import load_dataset, Dataset
 from transformers import PreTrainedTokenizerBase
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Tuple
 from src.logger import get_logger
+from sklearn.model_selection import train_test_split
 
 logger = get_logger()
 
@@ -55,6 +56,51 @@ def add_length(example: Dict) -> Dict:
 
 def get_cleaned_sorted_dataset(dataset):
     return dataset.sort('length').remove_columns(['instruction', 'output', 'length', 'prompt'])
+
+
+def split_and_sort_dataset(
+        dataset: Dataset,
+        train_ratio: float = 0.9,
+        val_ratio: float = 0.05,
+        test_ratio: float = 0.05,
+        seed: int = 17,
+) -> Dict[str, Dataset]:
+    """
+    Split dataset into train/val/test, add lengths, clean, and sort each by length.
+
+    Args:
+        dataset: Full HF Dataset (tokenized).
+        train_ratio, val_ratio, test_ratio: Proportions (must sum to 1.0).
+        seed: For reproducibility.
+
+    Returns:
+        Dict of {'train': Dataset, 'val': Dataset, 'test': Dataset}.
+    """
+    # First split: train vs test
+    temp_rt = val_ratio + test_ratio
+    split_1 = dataset.train_test_split(test_size=temp_rt, random_state=seed)
+    train_ds = split_1["train"]
+    temp_ds = split_1["test"]
+
+    # Second split: temp into val vs test
+    split_2 = temp_ds.train_test_split(test_size=test_ratio / temp_rt, random_state=seed)
+    val_ds = split_2["train"]
+    test_ds = split_2["test"]
+
+    # Log to check if split is correct
+    logger.debug(f"Whole dataset length: {len(dataset)}. "
+                 f"Train + val + test length: {len(train_ds) + len(val_ds) + len(test_ds)}")
+
+    # Add length, sort, clean each
+    splits = {"train": train_ds, "val": val_ds, "test": test_ds}
+    for name, ds in splits.items():
+        # Add length column
+        ds = ds.map(add_length)
+        # Clean and sort
+        ds = get_cleaned_sorted_dataset(ds)
+        splits[name] = ds
+
+    return splits
 
 
 def get_dataloader(

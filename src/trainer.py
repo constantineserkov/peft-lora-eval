@@ -45,7 +45,11 @@ def setup_scheduler(optimizer: Optimizer, config_dict: Dict) -> LambdaLR:
     )
 
 
-def compute_training_metrics(avg_train_loss: float, avg_eval_loss: float, device_index: int) -> Dict[str, float]:
+def compute_training_metrics(
+        avg_train_loss: float,
+        avg_eval_loss: float,
+        device_index: Optional[int]
+) -> Dict[str, float]:
     """
     Computes the following metrics:
         1. Avg_train_loss
@@ -70,10 +74,10 @@ def compute_training_metrics(avg_train_loss: float, avg_eval_loss: float, device
 
 def train_model(
         model: torch.nn.Module,
-        dataloader: DataLoader,
+        train_loader: DataLoader,
         device: str,
         config_dict: Dict,
-        eval_dataloader: Optional[DataLoader] = None
+        val_loader: Optional[DataLoader] = None
 ) -> None:
 
     logger.info(f"LR type: {type(config_dict['training']['lr'])}")
@@ -83,16 +87,16 @@ def train_model(
 
     for epoch in range(1, config_dict['training']['num_epochs'] + 1):
         train_losses = []
-        log_every = 500
+        log_every = 5000
         running_loss = 0
 
-        model.train()
         step = None
-        for step, batch in enumerate(dataloader):
+        for step, batch in enumerate(train_loader):
             input_ids = batch['input_ids'].to(device)
             attention_mask = batch['attention_mask'].to(device)
             labels = batch['labels'].to(device)
 
+            model.train()
             with autocast(dtype=torch.float16):
                 outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
                 loss = outputs.loss / config_dict['training']['grad_accumulation_steps']
@@ -114,8 +118,37 @@ def train_model(
                 optimizer.zero_grad()
 
             if (step + 1) % log_every == 0:
+                avg_train_loss = running_loss / log_every
                 print(f"Step {step + 1}: average loss = {running_loss / log_every}")
                 running_loss = 0
+
+                # Validation
+                if val_loader:
+                    val_running_loss = 0
+
+                    for val_batch in val_loader:
+                        input_ids = batch['input_ids'].to(device)
+                        attention_mask = batch['attention_mask'].to(device)
+                        labels = batch['labels'].to(device)
+
+                        model.eval()
+                        with autocast(dtype=torch.float16):
+                            outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+                            val_running_loss += outputs.loss.item()
+
+                    # Compute metrics
+                    avg_eval_loss = val_running_loss / len(val_loader)
+                    metrics = compute_training_metrics(avg_train_loss, avg_eval_loss)
+
+                    # Log metrics
+                    logger.info(f"Step: {step}\n"
+                                f"Avg. train loss: {metrics["train_loss"]}\n"
+                                f"Avg. valid. loss: {metrics["eval_loss"]}\n"
+                                f"Pefplexity: {metrics["perplexity"]}\n"
+                                f"VRAM usage: {metrics["vram_usage"]} MB")
+                else:
+                    logger.info(f"Avg. train loss: {avg_train_loss}\n"
+                                f"VRAM usage: {log_vram_usage()}")
 
         # check for a leftover
         if (step + 1) % config_dict['training']['grad_accumulation_steps'] != 0:
@@ -126,9 +159,7 @@ def train_model(
             scheduler.step()
             optimizer.zero_grad()
 
-        if eval_dataloader:
-            # create two val loaders one small and one bigger for every epoch and every 1k steps validation
-            metrics = compute_training_metrics(avg_train_loss, avg_eval_loss)
+
 
         epoch_loss = sum(train_losses) / len(train_losses)
         print(f"\n\nEpoch {epoch} average loss: {epoch_loss}\n\n")
