@@ -1,6 +1,8 @@
 import logging
 import colorlog
 import os
+import pynvml
+import atexit
 
 
 # configure a single global handler
@@ -27,6 +29,16 @@ def set_up_logging(log_filename: str = "results/logs/project.log"):
 
     # root logger config
     logging.basicConfig(level=logging.DEBUG, handlers=[console_handler, file_handler])
+
+
+    # NVML init here (once per call, but since module-level, once per import)
+    try:
+        pynvml.nvmlInit()
+        print("NVML initialized in logger")  # Or use your log.info
+        # Auto-shutdown on process exit (decrements refcount)
+        atexit.register(pynvml.nvmlShutdown)
+    except Exception as e:
+        print(f"Failed to initialize NVML in logger: {e}. VRAM logging disabled.")
 
 def get_logger(name: str = __name__):
     return logging.getLogger(name)

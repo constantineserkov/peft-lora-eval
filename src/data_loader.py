@@ -2,14 +2,14 @@ import torch
 from torch.utils.data import DataLoader
 from datasets import load_dataset, Dataset
 from transformers import PreTrainedTokenizerBase
-from typing import List, Dict, Optional, Any, Tuple
+from typing import List, Dict, Optional
 from src.logger import get_logger
-from sklearn.model_selection import train_test_split
 
 logger = get_logger()
 
 
 def load_alpaca_data(dataset_name: str, data_subset: int) -> Dataset:
+    logger.debug("Loading the alpaca dataset")
     # Load dataset
     dataset = load_dataset(dataset_name, split=f"train[:{data_subset}]", streaming=False, cache_dir="../data/processed").remove_columns('input')
 
@@ -78,12 +78,12 @@ def split_and_sort_dataset(
     """
     # First split: train vs test
     temp_rt = val_ratio + test_ratio
-    split_1 = dataset.train_test_split(test_size=temp_rt, random_state=seed)
+    split_1 = dataset.train_test_split(test_size=temp_rt, seed=seed)
     train_ds = split_1["train"]
     temp_ds = split_1["test"]
 
     # Second split: temp into val vs test
-    split_2 = temp_ds.train_test_split(test_size=test_ratio / temp_rt, random_state=seed)
+    split_2 = temp_ds.train_test_split(test_size=test_ratio / temp_rt, seed=seed)
     val_ds = split_2["train"]
     test_ds = split_2["test"]
 

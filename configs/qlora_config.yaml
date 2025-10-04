@@ -1,9 +1,9 @@
 project_name: "peft_lora_eval"
 
-mode: "lora"
+mode: "qlora"
 
 # PEFT method
-method: "lora"
+method: "qlora"
 
 # Model configuration
 model:

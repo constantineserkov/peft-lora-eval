@@ -1,22 +1,25 @@
+import time
+from typing import Dict, Optional
+from src.logger import get_logger
 import wandb
+import pynvml
+from tqdm import tqdm
+import gc
+
 import torch
 import numpy as np
 import transformers
-from torch.cuda.amp import autocast, GradScaler
+from torch.amp import autocast, GradScaler
 from torch.utils.data import DataLoader
-from typing import Dict, Optional
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LambdaLR
-from src.logger import get_logger
 from bitsandbytes.optim import PagedAdamW8bit
-import pynvml
-from tqdm import tqdm
 
 logger = get_logger()
 
 
-def setup_scaler():
-    return GradScaler()
+def setup_scaler(device: str):
+    return GradScaler(device)
 
 
 def setup_optimizer(model: torch.nn.Module, config_dict: Dict) -> Optimizer:
@@ -28,7 +31,7 @@ def setup_optimizer(model: torch.nn.Module, config_dict: Dict) -> Optimizer:
     #     eps=config_dict['training']['optimizer']['eps']
     # )
     return PagedAdamW8bit(
-        torch.Tensor(model.parameters()),  # why tensor?
+        model.parameters(),
         lr=config_dict['training']['lr'],
         weight_decay=config_dict['training']['optimizer']['weight_decay'],
         betas=config_dict['training']['optimizer']['betas'],
@@ -80,9 +83,12 @@ def log_vram_usage(device_index: int = 0) -> float:
 
 
 # Save model's checkpoints to disk each N num_steps
-def save_checkpoint(num_steps: int) -> None:
-    pass
-
+def save_checkpoint(avg_eval_loss, best_loss, model, tokenizer, epoch, config_dict) -> float:
+    best_loss = avg_eval_loss
+    model.save_pretrained(config_dict["output_path"])
+    tokenizer.save_pretrained(config_dict["output_path"])
+    logger(f"New best model saved at epoch {epoch} with eval_loss: {avg_eval_loss:.4f}")
+    return best_loss
 
 def train_model(
         model: torch.nn.Module,
@@ -94,11 +100,14 @@ def train_model(
 ) -> None:
 
     logger.info(f"LR type: {type(config_dict['training']['lr'])}")
-    scaler = setup_scaler()
+    scaler = setup_scaler(device)
     optimizer = setup_optimizer(model, config_dict)
     scheduler = setup_scheduler(optimizer, config_dict)
 
     best_loss = float("inf")
+    model.train()
+    # IMPLEMENT time tracking train_time = tot_time - val_time
+    # start_time = time.time()
 
     for epoch in range(1, config_dict['training']['num_epochs'] + 1):
         per_epoch_metrics = {
@@ -111,7 +120,7 @@ def train_model(
         running_loss = 0
 
         # Wrap the train loader with tqdm
-        pbar = tqdm(train_loader, desc="Training", unit="batch")  # if is off on Jupeter, set position=0
+        pbar = tqdm(train_loader, desc="Training", unit="batch")  # if is off on Jupyter, set position=0
 
         step = None
         for step, batch in enumerate(pbar):
@@ -120,12 +129,12 @@ def train_model(
             labels = batch['labels'].to(device)
 
             model.train()
-            with autocast(dtype=torch.float16):
+            with autocast(device, dtype=torch.bfloat16):
                 outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
                 loss = outputs.loss / config_dict['training']['grad_accumulation_steps']
 
-                if not torch.isnan(loss.item()):
-                    pbar.set_description(f"Loss: {loss.item():.4f}")
+                # set Loss description in tqdm
+                pbar.set_description(f"Loss: {loss.item():.4f}")
 
             # Backward pass with scaled loss
             scaler.scale(loss).backward()
@@ -157,17 +166,18 @@ def train_model(
 
                     with torch.no_grad():  # Disable gradients
                         for val_batch in pbar_val:
-                            input_ids = batch['input_ids'].to(device)
-                            attention_mask = batch['attention_mask'].to(device)
-                            labels = batch['labels'].to(device)
+                            input_ids = val_batch['input_ids'].to(device)
+                            attention_mask = val_batch['attention_mask'].to(device)
+                            labels = val_batch['labels'].to(device)
 
                             model.eval()
-                            with autocast(dtype=torch.float16):
+                            with autocast(device, dtype=torch.float16):
                                 outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
                                 loss = outputs.loss.item()
                                 val_running_loss += loss
-                                if not torch.isnan(loss):
-                                    pbar.set_description(f"Val Loss: {loss:.4f}")
+
+                                # set Loss desctiption in tqdm
+                                pbar.set_description(f"Val Loss: {loss:.4f}")
 
                         # Compute metrics
                         avg_eval_loss = val_running_loss / len(val_loader)
@@ -177,15 +187,12 @@ def train_model(
                         per_epoch_metrics["val_losses"].append(avg_eval_loss)
                         per_epoch_metrics["vram_usage"].append(metrics["vram_usage"])
 
-                        # Checkpoint logic: save if best
+                        # Checkpoint logic: save if best; update best_loss
                         if avg_eval_loss < best_loss:
-                            best_loss = avg_eval_loss
-                            model.save_pretrained(config_dict["output_path"])
-                            tokenizer.save_pretrained(config_dict["output_path"])
-                            logger(f"New best model saved at epoch {epoch} with eval_loss: {avg_eval_loss:.4f}")
+                            best_loss = save_checkpoint(avg_eval_loss, best_loss, model, tokenizer, epoch, config_dict)
 
                         # Log metrics
-                        current_lr = scheduler.get_last_lr()
+                        current_lr = scheduler.get_last_lr()[0]  # get_last_lr() -> List[float]
                         wandb.log({"lr": current_lr})
                         logger.info(f"Step: {step}\n"
                                     f"Avg. train loss: {metrics["train_loss"]}\n"
@@ -207,10 +214,17 @@ def train_model(
             scheduler.step()
             optimizer.zero_grad()
 
-        avg_train_epoch_loss = sum(per_epoch_metrics["train_losses"]) / len(per_epoch_metrics["train_losses"])  # avg of avg_train_losses
-        avg_val_epoch_loss = sum(per_epoch_metrics["val_losses"]) / len(per_epoch_metrics["val_losses"])  # avg of avg_val_losses
-        avg_perplexity = sum(per_epoch_metrics["perplexity"]) / len(per_epoch_metrics["perplexity"])
-        avg_vram_usage = sum(per_epoch_metrics["vram_usage"]) / len(per_epoch_metrics["vram_usage"])
+        # check if lists are empty
+        avg_train_epoch_loss = sum(per_epoch_metrics["train_losses"]) / len(per_epoch_metrics["train_losses"]) if (
+            per_epoch_metrics)["train_losses"] else 0
+        avg_val_epoch_loss = sum(per_epoch_metrics["val_losses"]) / len(per_epoch_metrics["val_losses"]) if (
+            per_epoch_metrics)["val_losses"] else 0
+        avg_perplexity = sum(per_epoch_metrics["perplexity"]) / len(per_epoch_metrics["perplexity"]) if (
+            per_epoch_metrics)["perplexity"] else 0
+        avg_vram_usage = sum(per_epoch_metrics["vram_usage"]) / len(per_epoch_metrics["vram_usage"]) if (
+            per_epoch_metrics)["vram_usage"] else 0
+
+        # populate logging data dict
         data = {
             "epoch": epoch,
             "avg_train_epoch_loss": avg_train_epoch_loss,
@@ -221,9 +235,13 @@ def train_model(
 
         wandb.log(data=data)
 
-        # release unused cached memory back to the GPU
+        # collect garbage and release unused cached memory back to the GPU
+        gc.collect()
         torch.cuda.empty_cache()
-    pynvml.nvmlShutdown()
+    try:
+        pynvml.nvmlShutdown()
+    except:
+        pass
     wandb.finish()
 
 

@@ -12,7 +12,6 @@ dependencies = [
     "evaluate>=0.4.6",
     "nvidia-ml-py>=13.580.82",
     "peft>=0.17.1",
-    "pynvml>=13.0.1",
     "pytest>=8.4.2",
     "pyyaml>=6.0.2",
     "scikit-learn>=1.7.2",
