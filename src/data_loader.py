@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import DataLoader
 from datasets import load_dataset, Dataset
-from transformers import PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerBase, AutoTokenizer
 from typing import List, Dict, Optional
 from src.logger import get_logger
 
@@ -60,30 +60,30 @@ def get_cleaned_sorted_dataset(dataset):
 
 def split_and_sort_dataset(
         dataset: Dataset,
-        train_ratio: float = 0.9,
+        config: Dict,
         val_ratio: float = 0.05,
         test_ratio: float = 0.05,
-        seed: int = 17,
 ) -> Dict[str, Dataset]:
     """
     Split dataset into train/val/test, add lengths, clean, and sort each by length.
 
     Args:
         dataset: Full HF Dataset (tokenized).
-        train_ratio, val_ratio, test_ratio: Proportions (must sum to 1.0).
-        seed: For reproducibility.
+        val_ratio: Val proportion
+        test_ratio: Test proportion. Proportions must sum to 1.0.
+        config: Dict.
 
     Returns:
         Dict of {'train': Dataset, 'val': Dataset, 'test': Dataset}.
     """
     # First split: train vs test
     temp_rt = val_ratio + test_ratio
-    split_1 = dataset.train_test_split(test_size=temp_rt, seed=seed)
+    split_1 = dataset.train_test_split(test_size=temp_rt, seed=config["seed"])
     train_ds = split_1["train"]
     temp_ds = split_1["test"]
 
     # Second split: temp into val vs test
-    split_2 = temp_ds.train_test_split(test_size=test_ratio / temp_rt, seed=seed)
+    split_2 = temp_ds.train_test_split(test_size=test_ratio / temp_rt, seed=config["seed"])
     val_ds = split_2["train"]
     test_ds = split_2["test"]
 
@@ -101,6 +101,25 @@ def split_and_sort_dataset(
         splits[name] = ds
 
     return splits
+
+
+def get_tokenized_dataset(dataset, config):
+    # For debugging
+    if config["use_small_model"]:
+        config['model']['model_name_or_path'] = "gpt2"
+        logger.debug(f"Using small model: '{config['model']['model_name_or_path']}'")
+
+    # tokenize dataset
+    tokenizer = AutoTokenizer.from_pretrained(config['model']['model_name_or_path'])
+
+    tokenizer.pad_token = tokenizer.eos_token
+    tokenized_dataset = dataset.map(
+        tokenize,
+        batched=True,
+        batch_size=100,
+        fn_kwargs={"tokenizer": tokenizer})
+
+    return tokenized_dataset, tokenizer
 
 
 def get_dataloader(

@@ -1,3 +1,4 @@
+# What is liger kernel for qlora
 from typing import Dict, Any
 
 import numpy as np
@@ -7,7 +8,7 @@ from tqdm import tqdm
 from src.logger import get_logger
 import torch
 from torch.utils.data import DataLoader
-from torch.amp import GradScaler, autocast
+from torch.amp import autocast
 import json
 from datetime import datetime
 import time
