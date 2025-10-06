@@ -11,6 +11,7 @@ from peft import (
     get_peft_model,
     TaskType,
     prepare_model_for_kbit_training,
+    PeftModelForCausalLM,
 )
 
 from typing import Dict
@@ -23,40 +24,15 @@ logger = get_logger()
 
 
 # Load a model and wrap it with peft
-def configure_peft_model(config_dict: Dict, device: str) -> torch.nn.Module:
-    logger.debug("Configuring a model...")
-
-    # Return a tiny model for testing
-    if config_dict["mode"] == "test":
-        logger.warning("config_dir['mode'] == 'test': configure_peft_model -> "
-                       "tiny model for testing w/o PEFT configuration. "
-                       "Model name: 'gpt2'")
-
-        # Create a minimal config for a tiny model
-        config = AutoConfig.from_pretrained(
-            "gpt2",  # Use a small base model architecture
-            vocab_size=10,  # Very small vocab for testing
-            n_embd=16,  # Tiny hidden size
-            n_layer=1,
-            n_head=1,
-        )
-        return AutoModelForCausalLM.from_config(config).to(device)
-
-    pretrained_model_name_or_path = config_dict['model']['model_name_or_path']
-
-    # If using base method (evaluate the base model)
-    if config_dict['method'] in ["base"]:
-        logger.info("PEFT is not used. Next step: base model evaluation.")
-        return AutoModelForCausalLM.from_pretrained(
-                pretrained_model_name_or_path,
-                low_cpu_mem_usage=True,
-                dtype=torch.float16,
-                offload_folder="offload",
-                attn_implementation="flash_attention_2" if torch.cuda.is_available() else "eager",
-            )
-
+def configure_peft_model_for_training(
+        config_dict: Dict,
+        device: str
+) -> torch.nn.Module:
     # Log peft method
-    logger.info(f"Using PEFT method: ''{config_dict["method"]}'")
+    logger.info(
+        f"Configuring a model..."
+        f"Using PEFT method: '{config_dict["method"]}'"
+    )
 
     # Init PEFT config
     peft_config = LoraConfig(
@@ -85,10 +61,10 @@ def configure_peft_model(config_dict: Dict, device: str) -> torch.nn.Module:
 
     # Load model
     model = AutoModelForCausalLM.from_pretrained(
-        pretrained_model_name_or_path,
+        config_dict['model']['model_name_or_path'],
         quantization_config=bnb_config,
         low_cpu_mem_usage=True,
-        dtype=torch.float16,
+        dtype=torch.bfloat16,
         offload_folder="offload",
         attn_implementation="flash_attention_2" if torch.cuda.is_available() else "eager",
     )
@@ -96,18 +72,40 @@ def configure_peft_model(config_dict: Dict, device: str) -> torch.nn.Module:
 
     # Prepare for k-bit training if needed
     if config_dict["method"] in ["qlora", "qdora"]:
-        model = prepare_model_for_kbit_training(
-            model,
-            use_gradient_checkpointing=True
-        )
+        model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
 
     # Wrap with PEFT
-    model = get_peft_model(
-        model,
-        peft_config,
-    )
-    logger.info("Base model has been wrapped with PEFT'")
+    model = get_peft_model(model, peft_config)
 
     # Log trainable parameters once
     logger.info(f"Model trainable parameters: {model.print_trainable_parameters()}")
+
+    return model.to(device)
+
+def configure_peft_model_for_eval(
+        config_dict: Dict,
+        device: str,
+) -> torch.nn.Module:
+    logger.debug("Loading model for evaluation...")
+
+    adapter_checkpoint_path = config_dict["output_path"]  # same dir as training save checkpoints output
+
+    # Base model
+    model = AutoModelForCausalLM.from_pretrained(
+        config_dict["model"]["model_name_or_path"],
+        low_cpu_mem_usage=True,
+        dtype=torch.bfloat16,
+        offload_folder="offload",
+        attn_implementation="flash_attention_2" if device == "cuda" else "eager",
+    )
+
+    # if it's a peft method
+    if config_dict["method"] != "base":
+        logger.info(f"Loading adapter weights from {adapter_checkpoint_path}")
+        model = PeftModelForCausalLM.from_pretrained(model, adapter_checkpoint_path)
+
+        # merge logic if merge set True
+        if config_dict["merge"]:
+            model = model.merge_and_unload()
+
     return model.to(device)
