@@ -1,4 +1,5 @@
 import os
+import sys
 
 from sympy.logic.boolalg import Boolean
 from yaml import safe_load
@@ -93,3 +94,15 @@ def load_and_validate_config(args):
     logger.info(f"Parsed args: \nconfig_path: {config_path}\nmethod: {args.method}\nseed: {args.seed}\n\n"
                  f"Config_dict: \n{config_dict}")
     return config_dict
+
+
+def check_if_checkpoints_exist(config: Dict):
+    # use only in run_evaluate.py
+    if os.path.exists(config["output_path"]):
+        logger.debug(f"Checkpoints exist at '{config["output_path"]}'")
+    else:
+        config["method"] = "base"
+        logger.warning(f"No checkpoints at '{config["output_path"]}'. "
+                       f"Only 'base' method is available. config['method'] set to {config['method']}.")
+        if (input("Do you want to proceed with method set to 'base'? Y/n?")).strip().lower() not in ['y', 'yes']:
+            sys.exit(1)

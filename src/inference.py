@@ -12,3 +12,7 @@ metrics = {
         "wall_clock_time": 0,
         "compute_flops": 0,
     }
+
+
+def get_inference_metrics():
+    pass

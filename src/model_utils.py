@@ -82,13 +82,12 @@ def configure_peft_model_for_training(
 
     return model.to(device)
 
+
 def configure_peft_model_for_eval(
         config_dict: Dict,
         device: str,
 ) -> torch.nn.Module:
     logger.debug("Loading model for evaluation...")
-
-    adapter_checkpoint_path = config_dict["output_path"]  # same dir as training save checkpoints output
 
     # Base model
     model = AutoModelForCausalLM.from_pretrained(
@@ -101,7 +100,9 @@ def configure_peft_model_for_eval(
 
     # if it's a peft method
     if config_dict["method"] != "base":
+        adapter_checkpoint_path = config_dict["output_path"]
         logger.info(f"Loading adapter weights from {adapter_checkpoint_path}")
+
         model = PeftModelForCausalLM.from_pretrained(model, adapter_checkpoint_path)
 
         # merge logic if merge set True
