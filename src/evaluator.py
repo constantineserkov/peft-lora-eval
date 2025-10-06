@@ -14,7 +14,7 @@ from datetime import datetime
 import time
 import pynvml
 
-from trainer import log_vram_usage
+from src.trainer import log_vram_usage
 
 
 logger = get_logger()
@@ -43,6 +43,10 @@ def compute_metrics(metrics: Dict) -> Dict:
     }
 
 
+def generate_and_save_plots():
+    pass
+
+
 def save_results(metrics: Dict, metadata: Dict, config: Dict) -> None:
     """Save evaluation results to JSON file"""
     results = {
@@ -52,7 +56,7 @@ def save_results(metrics: Dict, metadata: Dict, config: Dict) -> None:
         "timestamp": datetime.now().isoformat()
     }
 
-    filename = f"results/metrics/{config["model_name"]}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json"
+    filename = f"results/metrics/{config["model"]["model_name_or_path"]}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json"
     with open(filename, 'w') as f:
         json.dump(results, f, indent=2)
 

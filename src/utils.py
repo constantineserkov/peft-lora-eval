@@ -48,6 +48,7 @@ def parse_args():
     parser.add_argument("--use-small-model", type=bool, default="True", help="True to use smaller model (gpt-2) for debugging.")
     parser.add_argument("--mode", type=str, default="test", help="Mode: train/test (train for training, test for testing the pipeline")
     parser.add_argument("--method", type=str, default="lora", help="Method name (LoRA/QLoRA/QDoRA)")
+    parser.add_argument("--merge", type=bool, default="False", help="Merge base model with adapter.")
     parser.add_argument("--seed", type=int, default=17, help="Seed number")
     parser.add_argument("--output-path", type=str, default=r"models\<method>_best", help="Checkpoint output path")
     parser.add_argument("--wandb-project", type=str, default="llama-finetune",
@@ -84,6 +85,7 @@ def load_and_validate_config(args):
         config_dict["use_small_model"] = args.use_small_model
         config_dict['mode'] = args.mode.lower()
         config_dict['method'] = args.method.lower()
+        config_dict["merge"] = args.merge
         config_dict['seed'] = args.seed
         config_dict['output_path'] = args.output_path
         config_dict['data_subset'] = args.data_subset

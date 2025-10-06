@@ -3,7 +3,7 @@ import torch
 from src.auth import init_wandb, init_hf_auth
 from src.evaluator import evaluator
 from src.logger import set_up_logging, get_logger
-from src.model_utils import configure_peft_model
+from src.model_utils import configure_peft_model_for_eval
 from src.utils import parse_args, load_and_validate_config, set_seed
 from src.data_loader import (
     load_alpaca_data,
@@ -77,7 +77,7 @@ def main():
     )
 
     # Init model
-    model = configure_peft_model(config_dict=config, device=device)
+    model = configure_peft_model_for_eval(config_dict=config, device=device)
 
     # Run evaluation
     evaluator(model, test_loader, config, device, metadata)

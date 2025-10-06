@@ -21,7 +21,7 @@ from src.data_loader import (
 
 from src.auth import init_wandb, init_hf_auth
 from src.trainer import train_model
-from src.model_utils import configure_peft_model
+from src.model_utils import configure_peft_model_for_training
 from src.utils import get_num_warmup_steps, get_num_training_steps
 from transformers import AutoTokenizer
 
@@ -93,7 +93,7 @@ def main():
     logger.debug(f"train_loader: {train_loader}")
 
     # Init model
-    model = configure_peft_model(config_dict=config, device=device)
+    model = configure_peft_model_for_training(config_dict=config, device=device)
 
     # Trainer config setup
     config['training']['num_training_steps'] = get_num_training_steps(train_loader, config)
