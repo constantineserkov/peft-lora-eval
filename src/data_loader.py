@@ -110,7 +110,7 @@ def get_tokenized_dataset(dataset, config):
         logger.debug(f"Using small model: '{config['model']['model_name_or_path']}'")
 
     # tokenize dataset
-    tokenizer = AutoTokenizer.from_pretrained(config['model']['model_name_or_path'])
+    tokenizer = AutoTokenizer.from_pretrained(config['model']['model_name_or_path'], padding_side="left")
 
     tokenizer.pad_token = tokenizer.eos_token
     tokenized_dataset = dataset.map(

@@ -102,7 +102,7 @@ def check_if_checkpoints_exist(config: Dict):
         logger.debug(f"Checkpoints exist at '{config["output_path"]}'")
     else:
         config["method"] = "base"
-        logger.warning(f"No checkpoints at '{config["output_path"]}'. "
+        logger.warning(f"No checkpoints at '{config["output_path"]}'.\n"
                        f"Only 'base' method is available. config['method'] set to {config['method']}.")
         if (input("Do you want to proceed with method set to 'base'? Y/n?")).strip().lower() not in ['y', 'yes']:
             sys.exit(1)
