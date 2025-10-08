@@ -1,6 +1,4 @@
-import sys
-
-import torch.cuda
+import torch
 from transformers import AutoTokenizer
 
 from src.auth import init_wandb, init_hf_auth
