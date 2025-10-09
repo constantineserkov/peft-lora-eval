@@ -10,7 +10,7 @@ from src.data_loader import (
     format_prompt,
     get_tokenized_dataset,
     split_and_sort_dataset,
-    get_dataloader
+    get_dataloader, unpack_loaders
 )
 
 # Wall-clock time start
@@ -27,7 +27,6 @@ if device != "cuda":
 
 metadata = {
     "wc_start": wc_start,
-
 }
 
 
@@ -46,35 +45,7 @@ def main():
     init_wandb(config)
     init_hf_auth()
 
-    # load dataset
-    dataset = load_alpaca_data(
-        dataset_name=config["dataset_name"],
-        data_subset=config["data_subset"],
-    )
-
-    # format dataset
-    formatted_dataset = dataset.map(format_prompt, batched=True, batch_size=100)
-
-    # tokenize dataset
-    tokenized_dataset, tokenizer = get_tokenized_dataset(formatted_dataset, config)
-
-    # Split the tokenized ds into train/val/test_ds
-    datasets = split_and_sort_dataset(
-        tokenized_dataset,
-        config=config["seed"],
-    )
-    _, _, test_ds = datasets.values()
-
-    # debug
-    logger.debug(f"Tokenized test dataset sample: {test_ds[17]}")
-
-    # Load test loader
-    test_loader = get_dataloader(
-        test_ds,
-        tokenizer,
-        batch_size=config["dataloader"]["batch_size"],
-        seed=config["seed"],
-    )
+    _, _, test_loader, _ = unpack_loaders(config)
 
     # Init model
     model = configure_peft_model_for_eval(config_dict=config, device=device)
