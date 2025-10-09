@@ -17,7 +17,7 @@ dataloader:
 
 # Training configuration
 training:
-  lr: 0.0001
+  lr: 0.0002
   num_epochs: 3
   num_training_steps: 0
   grad_accumulation_steps: 4

@@ -1,11 +1,9 @@
 # What is liger kernel for qlora
 import os
-from cProfile import label
-from os.path import exists
 from typing import Dict, Any
 
 import matplotlib.pyplot as plt
-import seaborn as sns
+
 import numpy as np
 import wandb
 from tqdm import tqdm
@@ -195,8 +193,9 @@ def evaluator(
         dataloader: DataLoader[Dict[str, torch.Tensor]],
         config: Dict,
         device: str,
-        metadata: Dict,  # Include eval date, dataset split, model ID, seed, and compute (e.g., FLOPs/time). Save as: results/{model_name}_{timestamp}.json.
-) -> None:
+        metadata: Dict = None,  # Include eval date, dataset split, model ID, seed, and compute (e.g., FLOPs/time). Save as: results/{model_name}_{timestamp}.json.
+        tune_hyperparams: bool = False,  #  True to avoid saving results/plots
+):
     logger.debug("Running evaluator.")
 
     # Set up metrics
@@ -241,8 +240,14 @@ def evaluator(
 
     # timestamp
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+    if tune_hyperparams:
+        return final_metrics["evaluation"]["perplexity"], final_metrics
+
     # save results
     save_results(final_metrics, metadata, config, timestamp)
+    # gen and save plots
+    # generate_and_save_plots()
 
     logger.info(f"Evaluation completed in {temp_metrics['test_elapsed']:.2f}s")
     logger.info(f"Average loss: {final_metrics['evaluation']['avg_loss']:.4f}")
@@ -250,8 +255,12 @@ def evaluator(
 
     wandb.log(final_metrics)
 
+
+
     try:
         pynvml.nvmlShutdown()
     except pynvml.NVMLError:
         pass
     wandb.finish()
+
+    return None

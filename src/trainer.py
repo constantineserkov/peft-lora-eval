@@ -83,7 +83,7 @@ def log_vram_usage(device_index: int = 0) -> float:
 
 
 # Save model's checkpoints to disk each N num_steps
-def save_checkpoint(avg_eval_loss, best_loss, model, tokenizer, epoch, config_dict) -> float:
+def save_checkpoint(avg_eval_loss, model, tokenizer, epoch, config_dict) -> float:
     best_loss = avg_eval_loss
     model.save_pretrained(config_dict["output_path"])
     tokenizer.save_pretrained(config_dict["output_path"])
@@ -97,6 +97,7 @@ def train_model(
         device: str,
         config_dict: Dict,
         val_loader: Optional[DataLoader] = None,
+        tune_hyperparams: bool = False,  # if hyperparam tuning, do not save checkpoints
 ) -> None:
 
     logger.info(f"LR type: {type(config_dict['training']['lr'])}")
