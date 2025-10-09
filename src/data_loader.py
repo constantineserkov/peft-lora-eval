@@ -141,6 +141,55 @@ def get_dataloader(
     )
 
 
+def unpack_loaders(config):
+    # load dataset
+    dataset = load_alpaca_data(
+        dataset_name=config["dataset_name"],
+        data_subset=config["data_subset"],
+    )
+
+    # format dataset
+    formatted_dataset = dataset.map(format_prompt, batched=True, batch_size=100)
+
+    # tokenize dataset
+    tokenized_dataset, tokenizer = get_tokenized_dataset(formatted_dataset, config)
+
+    # Split the tokenized ds into train/val/test_ds
+    datasets = split_and_sort_dataset(
+        tokenized_dataset,
+        config=config["seed"],
+    )
+
+    train_ds, val_ds, test_ds = datasets.values()
+
+    # debug
+    logger.debug(f"Tokenized train dataset sample: {train_ds[0]}\n\n"
+                 f"Tokenized val dataset sample: {val_ds[1]}\n\n"
+                 f"Tokenized test dataset sample: {test_ds[2]}")
+
+    # Load dataloaders
+    train_loader = get_dataloader(
+        train_ds,
+        tokenizer,
+        batch_size=config["dataloader"]["batch_size"],
+        seed=config["seed"],
+    )
+    val_loader = get_dataloader(
+        val_ds,
+        tokenizer,
+        batch_size=config["dataloader"]["batch_size"],
+        seed=config["seed"],
+    )
+    test_loader = get_dataloader(
+        test_ds,
+        tokenizer,
+        batch_size=config["dataloader"]["batch_size"],
+        seed=config["seed"],
+    )
+
+    return train_loader, val_loader, test_loader, tokenizer
+
+
 class DataCollatorForCustomPadding:
     def __init__(self, tokenizer, pad_to_multiple_of=None):
         self.tokenizer = tokenizer
