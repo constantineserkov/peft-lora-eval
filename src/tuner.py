@@ -28,7 +28,7 @@ from src.model_utils import configure_peft_model_for_eval
 from src.trainer import train_model
 from src.evaluator import evaluator
 
-from logger import get_logger
+from src.logger import get_logger
 
 logger = get_logger()
 

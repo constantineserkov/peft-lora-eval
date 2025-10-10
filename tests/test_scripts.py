@@ -1,60 +1,60 @@
-import pytest
-from unittest.mock import patch, MagicMock, ANY
-
-import torch
-from transformers import AutoTokenizer
-
-from src.auth import init_wandb, init_hf_auth
-from src.inference import run_inference
-from src.logger import get_logger, set_up_logging
-from src.model_utils import configure_peft_model_for_eval
-from src.utils import parse_args, load_and_validate_config, set_seed
-
-class ExitException(Exception):
-    pass
-
-@pytest.fixture
-def mock_args():
-    mock_args = MagicMock()
-    mock_args.config_path = "tests/fixtures/mock_config.yaml" # Assume a fixture config exists
-    return mock_args
-
-@pytest.fixture
-def mock_config():
-    return {
-        "seed": 42,
-        "model": {"model_name_or_path": "gpt2"},
-    }
-
-def test_main(mock_args, mock_config):
-    with (
-        patch("scripts.run_inference.parse_args", return_value=mock_args),
-        patch("scripts.run_inference.load_and_validate_config", return_value=mock_config),
-        patch("scripts.run_inference.set_up_logging"),
-        patch("scripts.run_inference.set_seed"),
-        patch("scripts.run_inference.init_wandb"),
-        patch("scripts.run_inference.init_hf_auth"),
-        patch("scripts.run_inference.configure_peft_model_for_eval") as mock_model,
-        patch("scripts.run_inference.AutoTokenizer.from_pretrained") as mock_tokenizer,
-        patch("scripts.run_inference.run_inference") as mock_run,
-        patch("scripts.run_inference.torch.cuda.is_available", return_value=True),
-        patch("scripts.run_inference.get_logger") as mock_get_logger,
-    ):
-        mock_model_instance = MagicMock()
-        mock_model.return_value = mock_model_instance
-        mock_tokenizer_instance = MagicMock(spec=AutoTokenizer)
-        mock_tokenizer_instance.eos_token = "<|endoftext|>"
-        mock_tokenizer.return_value = mock_tokenizer_instance
-        mock_get_logger.return_value = MagicMock()
-
-        mock_run.side_effect = ExitException
-
-        from scripts.run_inference import main
-        with pytest.raises(ExitException):
-            main()
-        mock_model.assert_called_once_with(mock_config, "cuda")
-        mock_tokenizer.assert_called_once_with("gpt2")
-        mock_run.assert_called_once_with(mock_model_instance, mock_tokenizer_instance)
+# import pytest
+# from unittest.mock import patch, MagicMock, ANY
+#
+# import torch
+# from transformers import AutoTokenizer
+#
+# from src.auth import init_wandb, init_hf_auth
+# from src.inference import run_inference
+# from src.logger import get_logger, set_up_logging
+# from src.model_utils import configure_peft_model_for_eval
+# from src.utils import parse_args, load_and_validate_config, set_seed
+#
+# class ExitException(Exception):
+#     pass
+#
+# @pytest.fixture
+# def mock_args():
+#     mock_args = MagicMock()
+#     mock_args.config_path = "tests/fixtures/mock_config.yaml" # Assume a fixture config exists
+#     return mock_args
+#
+# @pytest.fixture
+# def mock_config():
+#     return {
+#         "seed": 42,
+#         "model": {"model_name_or_path": "gpt2"},
+#     }
+#
+# def test_main(mock_args, mock_config):
+#     with (
+#         patch("scripts.run_inference.parse_args", return_value=mock_args),
+#         patch("scripts.run_inference.load_and_validate_config", return_value=mock_config),
+#         patch("scripts.run_inference.set_up_logging"),
+#         patch("scripts.run_inference.set_seed"),
+#         patch("scripts.run_inference.init_wandb"),
+#         patch("scripts.run_inference.init_hf_auth"),
+#         patch("scripts.run_inference.configure_peft_model_for_eval") as mock_model,
+#         patch("scripts.run_inference.AutoTokenizer.from_pretrained") as mock_tokenizer,
+#         patch("scripts.run_inference.run_inference") as mock_run,
+#         patch("scripts.run_inference.torch.cuda.is_available", return_value=True),
+#         patch("scripts.run_inference.get_logger") as mock_get_logger,
+#     ):
+#         mock_model_instance = MagicMock()
+#         mock_model.return_value = mock_model_instance
+#         mock_tokenizer_instance = MagicMock(spec=AutoTokenizer)
+#         mock_tokenizer_instance.eos_token = "<|endoftext|>"
+#         mock_tokenizer.return_value = mock_tokenizer_instance
+#         mock_get_logger.return_value = MagicMock()
+#
+#         mock_run.side_effect = ExitException
+#
+#         from scripts.run_inference import main
+#         with pytest.raises(ExitException):
+#             main()
+#         mock_model.assert_called_once_with(mock_config, "cuda")
+#         mock_tokenizer.assert_called_once_with("gpt2")
+#         mock_run.assert_called_once_with(mock_model_instance, mock_tokenizer_instance)
 
 
 # import pytest

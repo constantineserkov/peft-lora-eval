@@ -247,7 +247,7 @@ def evaluator(
     # save results
     save_results(final_metrics, metadata, config, timestamp)
     # gen and save plots
-    # generate_and_save_plots()
+    generate_and_save_plots(final_metrics, timestamp, config)
 
     logger.info(f"Evaluation completed in {temp_metrics['test_elapsed']:.2f}s")
     logger.info(f"Average loss: {final_metrics['evaluation']['avg_loss']:.4f}")
