@@ -19,10 +19,7 @@ from typing import Dict, List
 from itertools import product
 
 import torch
-import transformers
-from torch.autograd.profiler_util import OUT_OF_MEMORY_EVENT_NAME
 from torch.utils.data import DataLoader
-from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from src.model_utils import configure_peft_model_for_eval
 from src.trainer import train_model
@@ -30,7 +27,9 @@ from src.evaluator import evaluator
 
 from src.logger import get_logger
 
+
 logger = get_logger()
+
 
 def define_search_space(method: str) -> Dict[str, List]:
     param_grid = {

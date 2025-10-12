@@ -51,6 +51,7 @@ def parse_args():
     parser.add_argument("--method", type=str, default="lora", help="Method name (LoRA/QLoRA/QDoRA)")
     parser.add_argument("--merge", type=bool, default="False", help="Merge base model with adapter.")
     parser.add_argument("--seed", type=int, default=17, help="Seed number")
+    parser.add_argument("--base-path", type=str, default="./", help="Current dir")
     parser.add_argument("--output-path", type=str, default=r"models\<method>_best", help="Checkpoint output path")
     parser.add_argument("--wandb-project", type=str, default="llama-finetune",
                         help="Specify the WandB project name for experiment tracking")
@@ -74,14 +75,14 @@ def verify_parsed_args(args):
 
 
 def load_and_validate_config(args):
-    root_dir = "./"
+    base_path = args.base_path
     config_path = os.path.join("configs/", f"{args.method.lower()}_config.yaml")
     logger.info(f"config_path: {config_path}")
 
     # verify arguments
     verify_parsed_args(args)
 
-    with open(os.path.join(root_dir, config_path), "r") as f:
+    with open(os.path.join(base_path, config_path), "r") as f:
         config_dict = safe_load(f)
         config_dict["use_small_model"] = args.use_small_model
         config_dict['mode'] = args.mode.lower()
@@ -90,6 +91,7 @@ def load_and_validate_config(args):
         config_dict['seed'] = args.seed
         config_dict['output_path'] = args.output_path
         config_dict['data_subset'] = args.data_subset
+        config_dict['base_path'] = base_path
 
     logger.info(f"Parsed args: \nconfig_path: {config_path}\nmethod: {args.method}\nseed: {args.seed}\n\n"
                  f"Config_dict: \n{config_dict}")

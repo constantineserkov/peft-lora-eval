@@ -1,3 +1,5 @@
+import sys
+
 import torch.cuda
 import wandb
 import os
@@ -25,6 +27,14 @@ def main():
 
     # parse args
     args = parse_args()
+    if "google.colab" in sys.modules:
+        args.base_path = "/content/drive/MyDrive/peft_lora_eval/"
+        logger.info(f"Detected Colab; using base_path: {args.base_path}")
+    # add kaggle check
+
+    # run locally
+    else:
+        logger.info(f"Local run; using base_path: {args.base_path}")
     config = load_and_validate_config(args)
 
     # set seed

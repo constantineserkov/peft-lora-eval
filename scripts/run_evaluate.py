@@ -1,3 +1,4 @@
+import sys
 import time
 import torch
 from src.auth import init_wandb, init_hf_auth
@@ -36,6 +37,14 @@ def main():
 
     # load config + add rewrite parsed args
     args = parse_args()
+    if "google.colab" in sys.modules:
+        args.base_path = "/content/drive/MyDrive/peft_lora_eval/"
+        logger.info(f"Detected Colab; using base_path: {args.base_path}")
+    # add kaggle check
+
+    # run locally
+    else:
+        logger.info(f"Local run; using base_path: {args.base_path}")
     config = load_and_validate_config(args=args)
 
     # set seed

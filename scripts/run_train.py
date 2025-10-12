@@ -1,3 +1,4 @@
+import sys
 import warnings
 
 # Ignore this specific FutureWarning from torch.cuda
@@ -11,19 +12,13 @@ import torch
 from src.logger import set_up_logging, get_logger
 from src.utils import set_seed, load_and_validate_config, parse_args
 
-from src.data_loader import (
-    load_alpaca_data,
-    format_prompt,
-    tokenize,
-    split_and_sort_dataset,
-    get_dataloader, get_tokenized_dataset, unpack_loaders,
-)
+from src.data_loader import unpack_loaders
 
 from src.auth import init_wandb, init_hf_auth
 from src.trainer import train_model
 from src.model_utils import configure_peft_model_for_training
 from src.utils import get_num_warmup_steps, get_num_training_steps
-from transformers import AutoTokenizer
+
 
 logger = get_logger()
 
@@ -42,6 +37,14 @@ def main():
 
     # load config
     args = parse_args()
+    if "google.colab" in sys.modules:
+        args.base_path = "/content/drive/MyDrive/peft_lora_eval/"
+        logger.info(f"Detected Colab; using base_path: {args.base_path}")
+    # add kaggle check
+
+    # run locally
+    else:
+        logger.info(f"Local run; using base_path: {args.base_path}")
     config = load_and_validate_config(args)
 
     # set seed
