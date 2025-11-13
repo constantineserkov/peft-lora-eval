@@ -6,7 +6,9 @@ import atexit
 
 
 # configure a single global handler
-def set_up_logging(log_filename: str = "results/logs/project.log"):
+def set_up_logging(
+        log_filename: str = "results/logs/project.log"
+)-> None:
     log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", log_filename)
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
 
