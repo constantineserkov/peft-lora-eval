@@ -20,19 +20,19 @@ from src.model_utils import configure_peft_model_for_training
 from src.utils import get_num_warmup_steps, get_num_training_steps
 
 
+logger = get_logger()
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+# warn if device is not cuda
+if device != "cuda":
+    logger.warning("Cuda is not available.")
+
+logger.info(f"Device: {device}")
+
 def main():
     # set up logging baseConfig
     set_up_logging()
-
-    logger = get_logger()
-
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    # warn if device is not cuda
-    if device != "cuda":
-        logger.warning("Cuda is not available.")
-
-    logger.info(f"Device: {device}")
 
     # load config
     args = parse_args()
