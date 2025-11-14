@@ -66,7 +66,8 @@ def configure_peft_model_for_training(
         low_cpu_mem_usage=True,
         dtype=torch.bfloat16,
         offload_folder="offload",
-        attn_implementation="flash_attention_2" if torch.cuda.is_available() else "eager",
+        # attn_implementation="flash_attention_2" if torch.cuda.is_available() else "eager",
+        attn_implementation="eager",
     )
     logger.info("Base model has been loaded.")
 
@@ -95,7 +96,8 @@ def configure_peft_model_for_eval(
         low_cpu_mem_usage=True,
         dtype=torch.bfloat16,
         offload_folder="offload",
-        attn_implementation="flash_attention_2" if device == "cuda" else "eager",
+        # attn_implementation="flash_attention_2" if device == "cuda" else "eager",
+        attn_implementation="eager",
     )
 
     # if it's a peft method
