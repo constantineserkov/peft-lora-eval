@@ -43,4 +43,5 @@ def set_up_logging(
         print(f"Failed to initialize NVML in logger: {e}. VRAM logging disabled.")
 
 def get_logger(name: str = __name__):
-    return logging.getLogger(name)
+    # setLevel debug is temporary
+    return logging.getLogger(name).setLevel(logging.DEBUG)
