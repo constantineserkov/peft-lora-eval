@@ -157,7 +157,7 @@ def unpack_loaders(config):
     # Split the tokenized ds into train/val/test_ds
     datasets = split_and_sort_dataset(
         tokenized_dataset,
-        config=config["seed"],
+        config=config,
     )
 
     train_ds, val_ds, test_ds = datasets.values()
