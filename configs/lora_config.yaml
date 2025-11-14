@@ -33,7 +33,7 @@ peft_config:
   r: 4
   lora_alpha: 8
   use_rslora: True
-  target_modules: ['q_proj', 'v_proj']
+  target_modules: ['q_proj', 'k_proj', 'v_proj', 'o_proj', 'gate_proj', 'up_proj', 'down_proj']
 
 # Logging & experiment tracking
 logging:
