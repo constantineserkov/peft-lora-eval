@@ -105,7 +105,7 @@ def split_and_sort_dataset(
 
 def get_tokenized_dataset(dataset, config):
     # For debugging
-    if isinstance(config["use_small_model"], bool):
+    if config["use_small_model"]:
         logger.debug(f"config['use_small_model] = {config['use_small_model']}")
         config['model']['model_name_or_path'] = "gpt2"
         logger.debug(f"Using small model: '{config['model']['model_name_or_path']}'")

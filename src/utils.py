@@ -46,7 +46,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Run Llama 3.2 3B fine-tune")
 
     # add arguments
-    parser.add_argument("--use-small-model", type=bool, default="True", help="True to use smaller model (gpt-2) for debugging.")
+    parser.add_argument("--use-small-model", help="True to use smaller model (gpt-2) for debugging.")
     parser.add_argument("--mode", type=str, default="test", help="Mode: train/test (train for training, test for testing the pipeline")
     parser.add_argument("--method", type=str, default="lora", help="Method name (LoRA/QLoRA/QDoRA)")
     parser.add_argument("--merge", type=bool, default="False", help="Merge base model with adapter.")
