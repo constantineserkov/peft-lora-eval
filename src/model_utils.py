@@ -30,8 +30,7 @@ def configure_peft_model_for_training(
 ) -> torch.nn.Module:
     # Log peft method
     logger.info(
-        f"Configuring a model..."
-        f"Using PEFT method: '{config_dict["method"]}'"
+        f"Configuring a model... Using PEFT method: '{config_dict["method"]}'"
     )
 
     # Init PEFT config
@@ -60,6 +59,7 @@ def configure_peft_model_for_training(
         )
 
     # Load model
+    logger.debug("MODEL NAME:", config_dict['model']['model_name_or_path'])
     model = AutoModelForCausalLM.from_pretrained(
         config_dict['model']['model_name_or_path'],
         quantization_config=bnb_config,
@@ -71,7 +71,7 @@ def configure_peft_model_for_training(
     )
     logger.info("Base model has been loaded.")
     logger.debug(f"Model modules names: {model.named_modules()}")
-    logger.info(f"Model modules names: {model.named_modules()}")
+
     # Prepare for k-bit training if needed
     if config_dict["method"] in ["qlora", "qdora"]:
         model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
