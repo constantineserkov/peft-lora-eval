@@ -13,7 +13,7 @@ model:
 dataset_name: "yahma/alpaca-cleaned"
 
 dataloader:
-  batch_size: 4
+  batch_size: 1
 
 # Training configuration
 training:

@@ -59,7 +59,7 @@ def configure_peft_model_for_training(
         )
 
     # Load model
-    logger.debug("MODEL NAME:", config_dict['model']['model_name_or_path'])
+    logger.debug(f"MODEL NAME: {config_dict['model']['model_name_or_path']}")
     model = AutoModelForCausalLM.from_pretrained(
         config_dict['model']['model_name_or_path'],
         quantization_config=bnb_config,
