@@ -44,5 +44,7 @@ def set_up_logging(
 
 def get_logger(name: str = __name__):
     # setLevel debug is temporary
-    return logging.getLogger(name)
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    return logger
 

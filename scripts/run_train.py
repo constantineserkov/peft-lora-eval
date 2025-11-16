@@ -22,7 +22,8 @@ from src.utils import get_num_warmup_steps, get_num_training_steps
 
 def main():
     # set up logging baseConfig
-    set_up_logging()
+    if not "google.colab" in sys.modules:
+        set_up_logging()
 
     logger = get_logger()
 
