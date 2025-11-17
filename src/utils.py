@@ -108,3 +108,8 @@ def check_if_checkpoints_exist(config: Dict):
                        f"Only 'base' method is available. config['method'] set to {config['method']}.")
         if (input("Do you want to proceed with method set to 'base'? Y/n?")).strip().lower() not in ['y', 'yes']:
             sys.exit(1)
+
+
+def in_colab() -> bool:
+    """Checks if the current environment is Google Colab."""
+    return "google.colab" in sys.modules

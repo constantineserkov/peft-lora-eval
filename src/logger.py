@@ -4,11 +4,18 @@ import os
 import pynvml
 import atexit
 
+from src.utils import in_colab
+
 
 # configure a single global handler
 def set_up_logging(
         log_filename: str = "results/logs/project.log"
 )-> None:
+    if in_colab():
+        # remove existing handlers
+        for handler in logging.root.handlers[:]:
+            logging.root.removeHandler(handler)
+
     log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", log_filename)
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
 

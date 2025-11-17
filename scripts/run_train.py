@@ -17,13 +17,12 @@ from src.data_loader import unpack_loaders
 from src.auth import init_wandb, init_hf_auth
 from src.trainer import train_model
 from src.model_utils import configure_peft_model_for_training
-from src.utils import get_num_warmup_steps, get_num_training_steps
+from src.utils import get_num_warmup_steps, get_num_training_steps, in_colab
 
 
 def main():
     # set up logging baseConfig
-    if not "google.colab" in sys.modules:
-        set_up_logging()
+    set_up_logging()
 
     logger = get_logger()
 
@@ -37,7 +36,7 @@ def main():
 
     # load config
     args = parse_args()
-    if "google.colab" in sys.modules:
+    if in_colab():
         args.base_path = "/content/drive/MyDrive/peft_lora_eval/"
         logger.info(f"Detected Colab; using base_path: {args.base_path}")
     # add kaggle check

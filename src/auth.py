@@ -47,7 +47,8 @@ def init_wandb(config):
         if check_wandb_api_key():
             wandb.init(
                 project=config["project_name"],
-                config=config
+                config=config,
+                dir="./results",
             )
             logger.info("W&B initialized.")
         else:

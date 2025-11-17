@@ -111,6 +111,10 @@ def train_model(
     # IMPLEMENT time tracking train_time = tot_time - val_time
     # start_time = time.time()
 
+    # before training: collect garbage and release unused cached memory back to the GPU
+    gc.collect()
+    torch.cuda.empty_cache()
+
     for epoch in range(1, config_dict['training']['num_epochs'] + 1):
         per_epoch_metrics = {
             "train_losses": [],
