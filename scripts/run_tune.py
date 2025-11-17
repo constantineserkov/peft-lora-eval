@@ -4,30 +4,31 @@ import torch.cuda
 import wandb
 import os
 import yaml
+import contextlib
 
 import src.tuner as tuner
 from src.auth import init_wandb, init_hf_auth
 from src.data_loader import unpack_loaders
 from src.logger import get_logger, set_up_logging
-from src.utils import load_and_validate_config, parse_args, set_seed
-
-logger = get_logger()
-
-device = "cuda" if torch.cuda.is_available() else "cpu"
-
-# warn if device is not cuda
-if device != "cuda":
-    logger.warning("Cuda is not available.")
-
-logger.info(f"Device: {device}")
+from src.utils import load_and_validate_config, parse_args, set_seed, in_colab
 
 
 def main():
     set_up_logging()
 
+    logger = get_logger()
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # warn if device is not cuda
+    if device != "cuda":
+        logger.warning("Cuda is not available.")
+
+    logger.info(f"Device: {device}")
+
     # parse args
     args = parse_args()
-    if "google.colab" in sys.modules:
+    if in_colab():
         args.base_path = "/content/drive/MyDrive/peft_lora_eval/"
         logger.info(f"Detected Colab; using base_path: {args.base_path}")
     # add kaggle check
@@ -60,7 +61,9 @@ def main():
         score, final_metrics = tuner.tune_params(train_loader, test_loader, tokenizer, device, trial_config, config)
 
         trials.append({'idx': idx, 'config': trial_config, 'score': score})
-        wandb.log({'trial_idx': idx, **trial_config, **final_metrics})
+
+        with contextlib.suppress(Exception):
+            wandb.log({'trial_idx': idx, **trial_config, **final_metrics})
 
     # get best config
     best_conf = tuner.best_config(trials)
@@ -74,7 +77,8 @@ def main():
     with open(config_path, "w") as f:
         yaml.dump(config, f, default_flow_style=False)
 
-    wandb.finish()
+    with contextlib.suppress(Exception):
+        wandb.finish()
 
 
 if __name__ == "__main__":

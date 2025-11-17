@@ -113,3 +113,8 @@ def check_if_checkpoints_exist(config: Dict):
 def in_colab() -> bool:
     """Checks if the current environment is Google Colab."""
     return "google.colab" in sys.modules
+
+
+def in_kaggle() -> bool:
+    """Checks if the current environment is Kaggle Notebooks."""
+    return 'KAGGLE_KERNEL_RUN_TYPE' in os.environ
