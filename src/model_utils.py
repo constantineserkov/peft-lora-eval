@@ -103,13 +103,16 @@ def configure_peft_model_for_eval(
 
     # if it's a peft method
     if config_dict["method"] != "base":
-        adapter_checkpoint_path = config_dict["output_path"]
-        logger.info(f"Loading adapter weights from {adapter_checkpoint_path}")
+        try:
+            adapter_checkpoint_path = config_dict["output_path"]
+            logger.info(f"Loading adapter weights from {adapter_checkpoint_path}")
 
-        model = PeftModelForCausalLM.from_pretrained(model, adapter_checkpoint_path)
+            model = PeftModelForCausalLM.from_pretrained(model, adapter_checkpoint_path)
 
-        # merge logic if merge set True
-        if config_dict["merge"]:
-            model = model.merge_and_unload()
-
+            # merge logic if merge set True
+            if config_dict["merge"]:
+                model = model.merge_and_unload()
+        except ValueError as e:
+            logger.error(f"For method '{config_dict["method"]}' no checkpoints were found.")
+            raise e
     return model.to(device)
