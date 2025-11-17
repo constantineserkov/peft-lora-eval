@@ -4,13 +4,12 @@ import os
 import pynvml
 import atexit
 
-from src.utils import in_colab
-
 
 # configure a single global handler
 def set_up_logging(
         log_filename: str = "results/logs/project.log"
 )-> None:
+    from src.utils import in_colab
     if in_colab():
         # remove existing handlers
         for handler in logging.root.handlers[:]:
