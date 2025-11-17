@@ -1,23 +1,22 @@
-# What is liger kernel for qlora
 import os
 from typing import Dict, Any
-
-import matplotlib.pyplot as plt
-
-import numpy as np
-import wandb
+import contextlib
 from tqdm import tqdm
-
-from src.logger import get_logger
-import torch
-from torch.utils.data import DataLoader
-from torch.amp import autocast
 import json
 from datetime import datetime
 import time
 import pynvml
 
+import matplotlib.pyplot as plt
+import numpy as np
+import wandb
+
+from src.logger import get_logger
 from src.trainer import log_vram_usage
+
+import torch
+from torch.utils.data import DataLoader
+from torch.amp import autocast
 
 
 logger = get_logger()
@@ -253,14 +252,12 @@ def evaluator(
     logger.info(f"Average loss: {final_metrics['evaluation']['avg_loss']:.4f}")
     logger.info(f"Perplexity: {final_metrics['evaluation']['perplexity']:.4f}")
 
-    wandb.log(final_metrics)
+    with contextlib.suppress(Exception):
+        wandb.log(final_metrics)
 
-
-
-    try:
+    with contextlib.suppress(pynvml.NVMLError):
         pynvml.nvmlShutdown()
-    except pynvml.NVMLError:
-        pass
-    wandb.finish()
+    with contextlib.suppress(Exception):
+        wandb.finish()
 
     return None

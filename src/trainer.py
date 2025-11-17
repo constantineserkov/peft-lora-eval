@@ -245,7 +245,7 @@ def train_model(
         gc.collect()
         torch.cuda.empty_cache()
 
-    with contextlib.suppress(Exception):
+    with contextlib.suppress(pynvml.NVMLError):
         pynvml.nvmlShutdown()
 
     with contextlib.suppress(Exception):

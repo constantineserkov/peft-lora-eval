@@ -1,4 +1,3 @@
-import sys
 import warnings
 
 # Ignore this specific FutureWarning from torch.cuda
