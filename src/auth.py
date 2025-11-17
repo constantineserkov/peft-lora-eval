@@ -1,5 +1,7 @@
 import os
+import dotenv
 import wandb
+from dotenv import load_dotenv
 from huggingface_hub import login as hf_login, HfFolder
 
 from src.logger import get_logger
@@ -8,8 +10,13 @@ logger = get_logger()
 
 
 def check_wandb_api_key():
+    # load wandb api key
+    load_dotenv()
+    api_key = os.environ.get("WANDB_API_KEY")
+
     # 1. Check env var
     if "WANDB_API_KEY" in os.environ:
+        wandb.login(api_key)
         return True
 
     # 2. Check default WandB settings file
@@ -21,13 +28,16 @@ def check_wandb_api_key():
                     return True
 
     # 3. If no key found suggest to log in
-    logger.info("No WandB API key found. Please log in to WandB.")
-    try:
-        wandb.login()
-        logger.info("WandB login successful")
-    except wandb.errors.UsageError:
-        logger.error("WandB API key not set; skipping logging")
-        return False
+    if not "WANDB_API_KEY" in os.environ:
+        logger.info("No WandB API key found. Please log in to WandB.")
+        try:
+            wandb.login()
+            logger.info("WandB login successful")
+            return True
+        except wandb.errors.UsageError:
+            logger.error("WandB API key not set; skipping logging")
+            return False
+    return None
 
 
 def init_wandb(config):
