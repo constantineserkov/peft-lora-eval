@@ -59,8 +59,9 @@ def init_wandb(config):
 
 def check_hf_token():
     # 1. Check environment variable
-    token = os.environ.get("HUGGINGFACE_HUB_TOKEN")
-    if token:
+    hf_token = os.environ.get("HUGGINGFACE_HUB_TOKEN")
+    if hf_token:
+        hf_login(hf_token)
         return True
 
     # 2. Check Hugging Face token in default folder
@@ -75,15 +76,16 @@ def check_hf_token():
         logger.error(f"Error checking Hugging Face token: {e}")
 
     # 3. No token found, prompt user to log in
-    logger.info("No Hugging Face token found. Please log in.")
-    try:
-        hf_login("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")  # temporary
-        logger.info("Hugging Face login successful")
-        return True
-    except Exception:
-        logger.error("Hugging Face token not set; skipping model download")
-        return False
-
+    if not hf_token:
+        logger.info("No Hugging Face token found. Please log in.")
+        try:
+            hf_login()  # temporary
+            logger.info("Hugging Face login successful")
+            return True
+        except Exception:
+            logger.error("Hugging Face token not set; skipping model download")
+            return False
+    return None
 
 def init_hf_auth():
     if check_hf_token():
