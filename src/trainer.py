@@ -5,6 +5,7 @@ import wandb
 import pynvml
 from tqdm import tqdm
 import gc
+import contextlib
 
 import torch
 import numpy as np
@@ -233,16 +234,15 @@ def train_model(
             "avg_perplexity": avg_perplexity,
             "avg_vram_usage": avg_vram_usage,
         }
-
-        wandb.log(data=data)
+        with contextlib.suppress(Exception):
+            wandb.log(data=data)
 
         # collect garbage and release unused cached memory back to the GPU
         gc.collect()
         torch.cuda.empty_cache()
-    try:
+
+    with contextlib.suppress(Exception):
         pynvml.nvmlShutdown()
-    except:
-        pass
-    wandb.finish()
 
-
+    with contextlib.suppress(Exception):
+        wandb.finish()
