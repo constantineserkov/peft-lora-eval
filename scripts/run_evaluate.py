@@ -13,9 +13,9 @@ def main():
     wc_start = time.time()
 
     # setup logging base config
-    console_handler, file_handler = set_up_logging()
+    set_up_logging()
 
-    logger = get_logger(console_handler, file_handler)
+    logger = get_logger()
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     logger.info(f"Device: {device}")

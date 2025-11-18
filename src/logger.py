@@ -4,6 +4,8 @@ import os
 import pynvml
 import atexit
 
+from accelerate.commands.menu.selection_menu import in_colab
+
 
 # configure a single global handler
 def set_up_logging(
@@ -41,8 +43,6 @@ def set_up_logging(
     if local:
         # root logger config
         logging.basicConfig(level=logging.DEBUG, handlers=[console_handler, file_handler])
-        return console_handler, file_handler
-    return console_handler, file_handler
 
     # NVML init here (once per call, but since module-level, once per import)
     try:
@@ -53,13 +53,26 @@ def set_up_logging(
     except Exception as e:
         print(f"Failed to initialize NVML in logger: {e}. VRAM logging disabled.")
 
-def get_logger(console_handler, file_handler, name: str = __name__):
-
+def get_logger(name: str = __name__):
+    from src.utils import in_colab, in_kaggle
     # setLevel debug is temporary
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
-    logger.handlers = []
-    logger.addHandler(console_handler)
-    logger.addHandler(file_handler)
+    if in_colab() or in_kaggle():
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(colorlog.ColoredFormatter(
+            "%(log_color)s%(levelname)-8s%(reset)s %(name)s: %(message)s",
+            log_colors={
+                "DEBUG": "cyan",
+                "INFO": "green",
+                "WARNING": "yellow",
+                "ERROR": "red",
+                "CRITICAL": "bold_red",
+            }
+        ))
+
+        logger.handlers = []
+        logger.addHandler(console_handler)
+        
     return logger
 
