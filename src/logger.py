@@ -45,6 +45,13 @@ def set_up_logging(
         # root logger config
         logging.basicConfig(level=logging.DEBUG, handlers=[console_handler, file_handler])
 
+    # Root logger: clear any old handlers first
+    root = logging.getLogger()
+    root.handlers = []
+    root.setLevel(logging.DEBUG)
+    root.addHandler(console_handler)
+    root.addHandler(file_handler)
+
     # NVML init here (once per call, but since module-level, once per import)
     try:
         pynvml.nvmlInit()
@@ -58,21 +65,6 @@ def get_logger(name: str = __name__):
     # setLevel debug is temporary
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
-    if "google.colab" in sys.modules:
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(colorlog.ColoredFormatter(
-            "%(log_color)s%(levelname)-8s%(reset)s %(name)s: %(message)s",
-            log_colors={
-                "DEBUG": "cyan",
-                "INFO": "green",
-                "WARNING": "yellow",
-                "ERROR": "red",
-                "CRITICAL": "bold_red",
-            }
-        ))
-
-        logger.handlers = []
-        logger.addHandler(console_handler)
 
     return logger
 
