@@ -80,7 +80,8 @@ def compute_training_metrics(
 def log_vram_usage(device_index: int = 0) -> float:
     handle = pynvml.nvmlDeviceGetHandleByIndex(device_index)
     mem_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
-    return mem_info / (1024 ** 3)  # GB
+    used_gb = mem_info.used / (1024 ** 3)  # GB
+    return used_gb
 
 
 # Save model's checkpoints to disk each N num_steps
