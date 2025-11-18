@@ -16,7 +16,7 @@ def check_wandb_api_key():
 
     # 1. Check env var
     if "WANDB_API_KEY" in os.environ:
-        wandb.login(api_key)
+        wandb.login(key=api_key)
         return True
 
     # 2. Check default WandB settings file
