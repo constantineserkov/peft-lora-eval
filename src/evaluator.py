@@ -184,7 +184,7 @@ def save_results(metrics: Dict, metadata: Dict, config: Dict, timestamp) -> None
     model_name = config["model"]["model_name_or_path"]
     save_dir = os.path.join("results", "metrics")
     os.makedirs(save_dir, exist_ok=True)
-    
+
     filename = os.path.join(save_dir, f"{model_name}_{timestamp}.json")
     with open(filename, 'w') as f:
         json.dump(results, f, indent=2)
@@ -248,8 +248,11 @@ def evaluator(
     if tune_hyperparams:
         return final_metrics["evaluation"]["perplexity"], final_metrics
 
+    logger.debug("Saving results...")
     # save results
     save_results(final_metrics, metadata, config, timestamp)
+
+    logger.debug("Generating and saving plots...")
     # gen and save plots
     generate_and_save_plots(final_metrics, timestamp, config)
 
