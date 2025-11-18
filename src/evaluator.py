@@ -201,7 +201,7 @@ def evaluator(
     temp_metrics: Dict[str, Any] = {
         "batches": [],
         "losses": [],
-        "perplexity": [],
+        "perplexities": [],
         "vram": [],
         "test_elapsed": None,
         "wc_time": None,
