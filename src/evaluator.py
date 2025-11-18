@@ -182,10 +182,11 @@ def save_results(metrics: Dict, metadata: Dict, config: Dict, timestamp) -> None
 
     # Build path
     model_name = config["model"]["model_name_or_path"]
+    safe_model_name = model_name.replace('/', '_')  # replace '/' to avoid unnecessary folder creation
     save_dir = os.path.join("results", "metrics")
     os.makedirs(save_dir, exist_ok=True)
 
-    filename = os.path.join(save_dir, f"{model_name}_{timestamp}.json")
+    filename = os.path.join(save_dir, f"{safe_model_name}_{timestamp}.json")
     with open(filename, 'w') as f:
         json.dump(results, f, indent=2)
 
