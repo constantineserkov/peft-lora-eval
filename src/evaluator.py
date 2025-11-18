@@ -82,7 +82,7 @@ def generate_and_save_plots(
         logger.debug(f"Created/verified {d} dir: {os.path.join(path, d)}")
 
     # Extract raw lists
-    batches = metrics["batches"]  # List of batch indices
+    batches = metrics["batch"]  # List of batch indices
     losses = metrics["evaluation"]["losses"]  # List of loss values
     perplexities = metrics["evaluation"]["losses"].get("perplexities", [np.exp(l) for l in losses])  # Fallback to compute from losses if not in metrics
     vram_values = metrics["hardware"]["vram"]  # List of VRAM values in GB

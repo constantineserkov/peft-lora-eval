@@ -55,11 +55,11 @@ def set_up_logging(
     # NVML init here (once per call, but since module-level, once per import)
     try:
         pynvml.nvmlInit()
-        print("NVML initialized in logger")  # Or use your log.info
+        logging.debug("NVML initialized in logger")  # Or use your log.info
         # Auto-shutdown on process exit (decrements refcount)
         atexit.register(pynvml.nvmlShutdown)
     except Exception as e:
-        print(f"Failed to initialize NVML in logger: {e}. VRAM logging disabled.")
+        logging.warning(f"Failed to initialize NVML in logger: {e}. VRAM logging disabled.")
 
 def get_logger(name: str = __name__):
     # setLevel debug is temporary
