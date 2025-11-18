@@ -3,6 +3,7 @@ import colorlog
 import os
 import pynvml
 import atexit
+import sys
 
 from accelerate.commands.menu.selection_menu import in_colab
 
@@ -58,7 +59,7 @@ def get_logger(name: str = __name__):
     # setLevel debug is temporary
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
-    if in_colab() or in_kaggle():
+    if "google.colab" in sys.modules:
         console_handler = logging.StreamHandler()
         console_handler.setFormatter(colorlog.ColoredFormatter(
             "%(log_color)s%(levelname)-8s%(reset)s %(name)s: %(message)s",
@@ -73,6 +74,6 @@ def get_logger(name: str = __name__):
 
         logger.handlers = []
         logger.addHandler(console_handler)
-        
+
     return logger
 
