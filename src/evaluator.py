@@ -180,7 +180,12 @@ def save_results(metrics: Dict, metadata: Dict, config: Dict, timestamp) -> None
         "timestamp": datetime.now().isoformat()
     }
 
-    filename = f"results/metrics/{config["model"]["model_name_or_path"]}_{timestamp}.json"
+    # Build path
+    model_name = config["model"]["model_name_or_path"]
+    save_dir = os.path.join("results", "metrics", model_name)
+    os.makedirs(save_dir, exist_ok=True)  # create all missing dirs
+
+    filename = os.path.join(save_dir, f"{model_name}_{timestamp}.json")
     with open(filename, 'w') as f:
         json.dump(results, f, indent=2)
 
