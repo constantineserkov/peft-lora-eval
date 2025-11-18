@@ -84,7 +84,7 @@ def generate_and_save_plots(
     # Extract raw lists
     batches = metrics["batch"]  # List of batch indices
     losses = metrics["evaluation"]["losses"]  # List of loss values
-    perplexities = metrics["evaluation"]["losses"].get("perplexities", [np.exp(l) for l in losses])  # Fallback to compute from losses if not in metrics
+    perplexities = [np.exp(loss) for loss in metrics["evaluation"]["losses"]]  # calculate perplexities
     vram_values = metrics["hardware"]["vram"]  # List of VRAM values in GB
 
     # evaluation: loss/perplexity curves
