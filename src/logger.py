@@ -55,7 +55,6 @@ def set_up_logging(
         print(f"Failed to initialize NVML in logger: {e}. VRAM logging disabled.")
 
 def get_logger(name: str = __name__):
-    from src.utils import in_colab, in_kaggle
     # setLevel debug is temporary
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
