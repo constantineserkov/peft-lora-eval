@@ -226,7 +226,7 @@ def evaluator(
             attention_mask = batch["attention_mask"].to(device)
             labels = batch["labels"].to(device)
 
-            with autocast(device, dtype=torch.float32):
+            with autocast(device, dtype=torch.bfloat16):
                 outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
                 loss = outputs.loss.item()
 
