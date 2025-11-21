@@ -233,8 +233,7 @@ def evaluator(
                 # update metrics
                 temp_metrics["batches"].append(batch_idx)
                 temp_metrics["losses"].append(loss)
-                if (batch_idx + 1) % 25 == 0:
-                    temp_metrics["vram"].append(log_vram_usage())
+                temp_metrics["vram"].append(log_vram_usage())
 
     end_time = time.time()
 
