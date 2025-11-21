@@ -14,9 +14,8 @@ from peft import (
 )
 
 from typing import Dict
-import pynvml
 from src.logger import get_logger
-from utils import select_attn
+from src.utils import select_attn
 
 # get logger
 logger = get_logger()
