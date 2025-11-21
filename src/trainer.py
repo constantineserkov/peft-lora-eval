@@ -6,7 +6,6 @@ import pynvml
 from tqdm import tqdm
 import gc
 import contextlib
-
 import torch
 import numpy as np
 import transformers
@@ -23,14 +22,10 @@ def setup_scaler(device: str):
     return GradScaler(device)
 
 
-def setup_optimizer(model: torch.nn.Module, config_dict: Dict) -> Optimizer:
-    # return torch.optim.AdamW(
-    #     model.parameters(),
-    #     lr=config_dict['training']['lr'],
-    #     weight_decay=config_dict['training']['optimizer']['weight_decay'],
-    #     betas=config_dict['training']['optimizer']['betas'],
-    #     eps=config_dict['training']['optimizer']['eps']
-    # )
+def setup_optimizer(
+        model: torch.nn.Module,
+        config_dict: Dict
+) -> Optimizer:
     return PagedAdamW8bit(
         model.parameters(),
         lr=config_dict['training']['lr'],
@@ -40,8 +35,10 @@ def setup_optimizer(model: torch.nn.Module, config_dict: Dict) -> Optimizer:
     )
 
 
-
-def setup_scheduler(optimizer: Optimizer, config_dict: Dict) -> LambdaLR:
+def setup_scheduler(
+        optimizer: Optimizer,
+        config_dict: Dict
+) -> LambdaLR:
     return transformers.get_linear_schedule_with_warmup(
         optimizer=optimizer,
         num_warmup_steps=config_dict['training']['scheduler']['num_warmup_steps'],
@@ -77,7 +74,9 @@ def compute_training_metrics(
 
 
 # Log VRAM with pynvml
-def log_vram_usage(device_index: int = 0) -> float:
+def log_vram_usage(
+        device_index: int = 0
+) -> float:
     handle = pynvml.nvmlDeviceGetHandleByIndex(device_index)
     mem_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
     used_gb = mem_info.used / (1024 ** 3)  # GB
@@ -85,12 +84,19 @@ def log_vram_usage(device_index: int = 0) -> float:
 
 
 # Save model's checkpoints to disk each N num_steps
-def save_checkpoint(avg_eval_loss, model, tokenizer, epoch, config_dict) -> float:
+def save_checkpoint(
+        avg_eval_loss,
+        model,
+        tokenizer,
+        epoch,
+        config_dict,
+) -> float:
     best_loss = avg_eval_loss
     model.save_pretrained(config_dict["output_path"])
     tokenizer.save_pretrained(config_dict["output_path"])
     logger(f"New best model saved at epoch {epoch} with eval_loss: {avg_eval_loss:.4f}")
     return best_loss
+
 
 def train_model(
         model: torch.nn.Module,
@@ -164,14 +170,14 @@ def train_model(
                 per_epoch_metrics["train_losses"].append(avg_train_loss)
                 running_loss = 0
 
-                # Validation
+                ### Validation ###
                 if val_loader:
                     val_running_loss = 0
 
                     # Wrap the val loader with tqdm
                     pbar_val = tqdm(val_loader, desc="Validation")
 
-                    with torch.no_grad():  # Disable gradients
+                    with torch.no_grad():
                         for val_batch in pbar_val:
                             input_ids = val_batch['input_ids'].to(device)
                             attention_mask = val_batch['attention_mask'].to(device)

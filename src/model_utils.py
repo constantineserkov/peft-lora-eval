@@ -2,7 +2,6 @@ import torch
 
 from transformers import (
     AutoModelForCausalLM,
-    AutoConfig,
     BitsAndBytesConfig,
 )
 
@@ -15,9 +14,9 @@ from peft import (
 )
 
 from typing import Dict
-
+import pynvml
 from src.logger import get_logger
-
+from utils import select_attn
 
 # get logger
 logger = get_logger()
@@ -29,9 +28,7 @@ def configure_peft_model_for_training(
         device: str
 ) -> torch.nn.Module:
     # Log peft method
-    logger.info(
-        f"Configuring a model... Using PEFT method: '{config_dict["method"]}'"
-    )
+    logger.info(f"Configuring a model... Using PEFT method: '{config_dict["method"]}'")
 
     # Init PEFT config
     peft_config = LoraConfig(
@@ -58,16 +55,19 @@ def configure_peft_model_for_training(
             bnb_4bit_quant_storage="uint8",
         )
 
+    # Select flash attention if available
+    attn = select_attn()
+
     # Load model
     logger.debug(f"MODEL NAME: {config_dict['model']['model_name_or_path']}")
+
     model = AutoModelForCausalLM.from_pretrained(
         config_dict['model']['model_name_or_path'],
         quantization_config=bnb_config,
         low_cpu_mem_usage=True,
         dtype=torch.bfloat16,
         offload_folder="offload",
-        # attn_implementation="flash_attention_2" if torch.cuda.is_available() else "eager",
-        attn_implementation="eager",
+        attn_implementation=attn,
     )
     logger.info("Base model has been loaded.")
     logger.debug(f"Model modules names: {model.named_modules()}")
@@ -89,7 +89,9 @@ def configure_peft_model_for_eval(
         config_dict: Dict,
         device: str,
 ) -> torch.nn.Module:
-    logger.debug("Loading model for evaluation...")
+    logger.info("Loading model for evaluation...")
+    # Select flash attention if available
+    attn = select_attn()
 
     # Base model
     model = AutoModelForCausalLM.from_pretrained(
@@ -97,12 +99,11 @@ def configure_peft_model_for_eval(
         low_cpu_mem_usage=True,
         dtype=torch.bfloat16,
         offload_folder="offload",
-        # attn_implementation="flash_attention_2" if device == "cuda" else "eager",
-        attn_implementation="eager",
+        attn_implementation=attn,
     )
 
     # if it's a peft method
-    if config_dict["method"] != "base":
+    if config_dict["method"] not in ["base", "instruct"]:
         try:
             adapter_checkpoint_path = config_dict["output_path"]
             logger.info(f"Loading adapter weights from {adapter_checkpoint_path}")
@@ -112,7 +113,9 @@ def configure_peft_model_for_eval(
             # merge logic if merge set True
             if config_dict["merge"]:
                 model = model.merge_and_unload()
+
         except ValueError as e:
             logger.error(f"For method '{config_dict["method"]}' no checkpoints were found.")
             raise e
+
     return model.to(device)

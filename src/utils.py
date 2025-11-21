@@ -10,6 +10,7 @@ import transformers
 from torch.utils.data import DataLoader
 from typing import Dict
 import argparse
+import pynvml
 
 from src.logger import get_logger
 
@@ -118,3 +119,38 @@ def in_colab() -> bool:
 def in_kaggle() -> bool:
     """Checks if the current environment is Kaggle Notebooks."""
     return 'KAGGLE_KERNEL_RUN_TYPE' in os.environ
+
+
+def select_attn() -> str:
+    supported = [
+        "NVIDIA A100",
+        "NVIDIA H100",
+        "NVIDIA L40",
+        "NVIDIA RTX 4090",
+        "NVIDIA RTX 4080",
+        "NVIDIA RTX 6000 Ada",
+    ]
+    name = pynvml.nvmlDeviceGetName(pynvml.nvmlDeviceGetHandleByIndex(0)).decode()
+    for g in supported:
+        logger.debug(name)
+        if g in name:
+            return "flash_attention_2"
+    return "eager"
+
+
+def resolve_device():
+    if torch.cuda.is_available():
+        return "cuda"
+    return "cpu"
+
+
+def resolve_base_path(args):
+    if in_colab():
+        p = "/content/drive/MyDrive/peft_lora_eval/"
+        logger.info(f"Colab detected; base_path={p}")
+        return p
+    if in_kaggle():
+        logger.info("Kaggle detected")
+        return args.base_path
+    logger.info(f"Local run; base_path={args.base_path}")
+    return args.base_path

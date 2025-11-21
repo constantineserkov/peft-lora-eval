@@ -1,5 +1,5 @@
 import os
-from typing import Dict, Any
+from typing import Dict
 import contextlib
 from tqdm import tqdm
 import json
@@ -49,10 +49,10 @@ def compute_metrics(metrics: Dict) -> Dict:
         "batch": metrics["batches"],
         "evaluation": {
             "losses": metrics["losses"],
-            "max_loss": max(metrics["losses"]) if metrics["losses"] else 0,
-            "min_loss": min(metrics["losses"]) if metrics["losses"] else 0,
-            "avg_loss": sum(metrics["losses"]) / len(metrics["losses"]) if metrics["losses"] else 0,
-            "perplexity": sum(metrics["perplexities"]) / len(metrics["perplexities"]) if metrics["perplexities"] else 0,
+            "max_loss": max(metrics["losses"]),
+            "min_loss": min(metrics["losses"]),
+            "avg_loss": np.mean(metrics["losses"]),
+            "perplexity": float(np.exp(np.mean(metrics["losses"]))),
         },
         "hardware": {
             "vram": metrics["vram"],
@@ -83,9 +83,9 @@ def generate_and_save_plots(
 
     # Extract raw lists
     batches = metrics["batch"]  # List of batch indices
-    losses = metrics["evaluation"]["losses"]  # List of loss values
-    perplexities = [np.exp(loss) for loss in metrics["evaluation"]["losses"]]  # calculate perplexities
-    vram_values = metrics["hardware"]["vram"]  # List of VRAM values in GB
+    losses = metrics["evaluation"]["losses"]
+    perplexities = [np.exp(l) for l in losses]
+    vram_values = metrics["hardware"]["vram"]
 
     # evaluation: loss/perplexity curves
     # 1. Loss Curve
@@ -104,7 +104,7 @@ def generate_and_save_plots(
 
     # 2 Perplexity Curve
     plt.figure(figsize=(10, 6))
-    plt.plot(batches, perplexities, label="Perplixity", color="orange")
+    plt.plot(batches, perplexities, label="Perple1kxity", color="orange")
     plt.xlabel("Batch Index")
     plt.ylabel("Perplexity Value")
     plt.title("Perplexity Curve: Model Quality Over Evaluation")
@@ -171,7 +171,12 @@ def generate_and_save_plots(
     logger.info(f"Plots generated and saved to {path}")
 
 
-def save_results(metrics: Dict, metadata: Dict, config: Dict, timestamp) -> None:
+def save_results(
+        metrics: Dict,
+        metadata: Dict,
+        config: Dict,
+        timestamp
+) -> None:
     """Save evaluation results to JSON file"""
     results = {
         "metadata": metadata,
@@ -202,12 +207,9 @@ def evaluator(
         tune_hyperparams: bool = False,  #  True to avoid saving results/plots
 ):
     logger.debug("Running evaluator.")
-
-    # Set up metrics
-    temp_metrics: Dict[str, Any] = {
+    temp_metrics: Dict[str, list[float] | list[int] | float | None] = {
         "batches": [],
         "losses": [],
-        "perplexities": [],
         "vram": [],
         "test_elapsed": None,
         "wc_time": None,
@@ -215,46 +217,42 @@ def evaluator(
 
     model.eval()
     start_time = time.time()
+    torch.cuda.reset_peak_memory_stats()  # reset to measure peak vram with torch
 
     with torch.no_grad():
-        # Wrap the val loader with tqdm
         pbar = tqdm(dataloader, desc="Evaluation")
-
         for batch_idx, batch in enumerate(pbar):
             input_ids = batch["input_ids"].to(device)
             attention_mask = batch["attention_mask"].to(device)
             labels = batch["labels"].to(device)
 
-            with autocast(device, dtype=torch.bfloat16):
+            with autocast(device, dtype=torch.float32):
                 outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
                 loss = outputs.loss.item()
 
                 # update metrics
                 temp_metrics["batches"].append(batch_idx)
                 temp_metrics["losses"].append(loss)
-                temp_metrics["perplexities"].append(np.exp(loss))
-                temp_metrics["vram"].append(log_vram_usage())
+                if (batch_idx + 1) % 25 == 0:
+                    temp_metrics["vram"].append(log_vram_usage())
 
     end_time = time.time()
 
     temp_metrics["test_elapsed"] = end_time - start_time
-    temp_metrics["wc_time"] = end_time - metadata["wc_start"]
-
-    # compute final metrics
+    temp_metrics["wc_time"] = end_time - metadata.get("wc_time", start_time)  # fallback if wc_time is missing
     final_metrics = compute_metrics(temp_metrics)
-
-    # timestamp
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 
     if tune_hyperparams:
         return final_metrics["evaluation"]["perplexity"], final_metrics
 
+    final_metrics["hardware"]["peak_vram_torch"] = torch.cuda.max_memory_allocated() / 1e9
+    torch.cuda.reset_peak_memory_stats()
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
     logger.debug("Saving results...")
-    # save results
     save_results(final_metrics, metadata, config, timestamp)
 
     logger.debug("Generating and saving plots...")
-    # gen and save plots
     generate_and_save_plots(final_metrics, timestamp, config)
 
     logger.info(f"Evaluation completed in {temp_metrics['test_elapsed']:.2f}s")
@@ -263,7 +261,6 @@ def evaluator(
 
     with contextlib.suppress(Exception):
         wandb.log(final_metrics)
-
     with contextlib.suppress(pynvml.NVMLError):
         pynvml.nvmlShutdown()
     with contextlib.suppress(Exception):
