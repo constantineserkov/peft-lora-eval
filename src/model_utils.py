@@ -15,7 +15,7 @@ from peft import (
 
 from typing import Dict
 from src.logger import get_logger
-from src.utils import select_attn
+from src.utils import select_attn_implementation
 
 # get logger
 logger = get_logger()
@@ -55,7 +55,7 @@ def configure_peft_model_for_training(
         )
 
     # Select flash attention if available
-    attn = select_attn()
+    attn = select_attn_implementation()
 
     # Load model
     logger.debug(f"MODEL NAME: {config_dict['model']['model_name_or_path']}")
@@ -90,7 +90,7 @@ def configure_peft_model_for_eval(
 ) -> torch.nn.Module:
     logger.info("Loading model for evaluation...")
     # Select flash attention if available
-    attn = select_attn()
+    attn = select_attn_implementation()
 
     # Base model
     model = AutoModelForCausalLM.from_pretrained(

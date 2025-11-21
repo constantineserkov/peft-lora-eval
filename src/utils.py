@@ -121,21 +121,34 @@ def in_kaggle() -> bool:
     return 'KAGGLE_KERNEL_RUN_TYPE' in os.environ
 
 
-def select_attn() -> str:
-    supported = [
-        "NVIDIA A100",
-        "NVIDIA H100",
-        "NVIDIA L40",
-        "NVIDIA RTX 4090",
-        "NVIDIA RTX 4080",
-        "NVIDIA RTX 6000 Ada",
-    ]
-    name = pynvml.nvmlDeviceGetName(pynvml.nvmlDeviceGetHandleByIndex(0)).decode()
-    for g in supported:
-        logger.debug(name)
-        if g in name:
+def select_attn_implementation() -> str | None:
+    """
+    Auto-select the best attention implementation.
+    Safe for Colab + new pynvml (returns str, not bytes).
+    """
+    try:
+        pynvml.nvmlInit()
+        handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+        name_bytes_or_str = pynvml.nvmlDeviceGetName(handle)
+
+        # Handle both old (bytes) and new (str) return types
+        if isinstance(name_bytes_or_str, bytes):
+            gpu_name = name_bytes_or_str.decode("utf-8")
+        else:
+            gpu_name = str(name_bytes_or_str)
+
+        gpu_name = gpu_name.lower()
+
+        if "a100" in gpu_name or "a10" in gpu_name or "h100" in gpu_name:
             return "flash_attention_2"
-    return "eager"
+        elif "rtx 4090" in gpu_name or "rtx 4080" in gpu_name or "l4" in gpu_name:
+            return "flash_attention_2"
+        else:
+            return "eager"  # safe fallback
+
+    except Exception as e:
+        print(f"Failed to detect GPU for attention: {e}. Using eager.")
+        return "eager"
 
 
 def resolve_device():
