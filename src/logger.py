@@ -4,19 +4,20 @@ import os
 import pynvml
 import atexit
 import sys
+from pathlib import Path
 
 from accelerate.commands.menu.selection_menu import in_colab
 
 
 # configure a single global handler
 def set_up_logging(
-        log_filename: str = "results/logs/project.log"
+        log_filename: str | Path = "runs/default_log_dir/project.log"
 ):
     from src.utils import in_colab, in_kaggle
     local = True
     if in_colab() or in_kaggle():
         logging.debug("Working in colab")
-        # remove existing handlers
+        # Remove existing handlers
         for handler in logging.root.handlers[:]:
             logging.root.removeHandler(handler)
         local = False
@@ -61,10 +62,17 @@ def set_up_logging(
     except Exception as e:
         logging.warning(f"Failed to initialize NVML in logger: {e}. VRAM logging disabled.")
 
-def get_logger(name: str = __name__):
+
+def get_logger(name: str = __name__, level: str = "INFO"):
     # setLevel debug is temporary
     logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
+
+    numeric_level = getattr(logging, level.upper(), None)
+
+    if not isinstance(numeric_level, int):
+        raise ValueError(f'Invalid log level: {level}')
+
+    logger.setLevel(numeric_level)
 
     return logger
 

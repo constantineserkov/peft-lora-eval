@@ -1,120 +1,154 @@
+import logging
+import os
+from typing import Dict, Optional, Tuple
 import torch
-
-from transformers import (
-    AutoModelForCausalLM,
-    BitsAndBytesConfig,
-)
+from transformers import AutoModelForCausalLM, BitsAndBytesConfig, PreTrainedModel
 
 from peft import (
     LoraConfig,
     get_peft_model,
     TaskType,
     prepare_model_for_kbit_training,
-    PeftModelForCausalLM,
+    PeftModel, PeftModelForCausalLM,
 )
 
-from typing import Dict
-from src.logger import get_logger
+from src.checkpoint import load_checkpoint
 from src.utils import select_attn_implementation
 
-# get logger
-logger = get_logger()
 
+def _get_quantization_config(method: str) -> Optional[BitsAndBytesConfig]:
+    """Return BitsAndBytes config only for QLoRA/QDoRA."""
+    if method not in {"qlora", "qdora"}:
+        return None
 
-# Load a model and wrap it with peft
-def configure_peft_model_for_training(
-        config_dict: Dict,
-        device: str
-) -> torch.nn.Module:
-    # Log peft method
-    logger.info(f"Configuring a model... Using PEFT method: '{config_dict["method"]}'")
-
-    # Init PEFT config
-    peft_config = LoraConfig(
-        task_type=TaskType.CAUSAL_LM,
-        inference_mode=False,
-        r=config_dict['peft_config']['r'],
-        lora_alpha=config_dict['peft_config']['lora_alpha'],
-        use_rslora=config_dict['peft_config']['use_rslora'],
-        target_modules=config_dict['peft_config']['target_modules']
+    return BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.bfloat16,
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_quant_storage=torch.uint8,
     )
 
-    # Determine PEFT flags
-    if config_dict["method"] in ["dora", "qdora"]:
-        peft_config.use_dora = True
 
-    # Determine quantization config
-    bnb_config = None
-    if config_dict["method"] in ["qlora", "qdora"]:
-        bnb_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_compute_dtype=torch.bfloat16,
-            bnb_4bit_use_double_quant=True,
-            bnb_4bit_quant_storage="uint8",
-        )
+def _get_lora_config(
+    base_config: Dict,
+    use_dora: bool = False,
+    from_checkpoint: Optional[Dict] = None,
+) -> LoraConfig:
+    """Create LoraConfig either from scratch or from checkpoint."""
+    if from_checkpoint:
+        return from_checkpoint["peft_config"]  # Already a PeftConfig object
 
-    # Select flash attention if available
+    return LoraConfig(
+        task_type=TaskType.CAUSAL_LM,
+        inference_mode=False,
+        r=base_config["r"],
+        lora_alpha=base_config["lora_alpha"],
+        use_rslora=base_config.get("use_rslora", False),
+        target_modules=base_config["target_modules"],
+        use_dora=use_dora,
+    )
+
+
+def init_base_model(
+        method, config: Dict,
+        logger: logging.Logger,
+) -> PreTrainedModel:
+    # 1. Quantization config (only for QLoRA/QDoRA)
+    quantization_config = _get_quantization_config(method)
+
+    # 2. Flash attention implementation
     attn = select_attn_implementation()
 
-    # Load model
-    logger.debug(f"MODEL NAME: {config_dict['model']['model_name_or_path']}")
+    # 3. Load base model
+    model_name = config['model']['model_name_or_path']
+    logger.debug(f"MODEL NAME: {model_name}")
 
     model = AutoModelForCausalLM.from_pretrained(
-        config_dict['model']['model_name_or_path'],
-        quantization_config=bnb_config,
+        model_name,
+        quantization_config=quantization_config,
         low_cpu_mem_usage=True,
         dtype=torch.bfloat16,
         offload_folder="offload",
         attn_implementation=attn,
+        trust_remote_code=True
     )
-    logger.info("Base model has been loaded.")
-    logger.debug(f"Model modules names: {model.named_modules()}")
+    logger.info("Base model has been loaded successfully.")
 
-    # Prepare for k-bit training if needed
-    if config_dict["method"] in ["qlora", "qdora"]:
+    return model
+
+
+def configure_peft_model_for_training(
+        model: PreTrainedModel,
+        metadata: Dict,
+        config: Dict,
+        device: str,
+        logger,
+) -> Tuple[PeftModel, Dict]:
+    method = config["active_method"]
+    logger.info(f"Configuring peft model using method: '{method}'")
+
+    # 1. Load checkpoint (if any)
+    checkpoint = load_checkpoint(config, metadata, logger)
+
+    # 2. Prepare for k-bit training if needed (only needed for 4-bit)
+    quantization_config = _get_quantization_config(method)  # Re-get to check if quantized
+    if quantization_config:
         model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
 
-    # Wrap with PEFT
+    # 3. Create or restore PEFT config
+    use_dora = method in {"dora", "qdora"}
+    peft_config = _get_lora_config(
+        base_config=config["peft_config"],
+        use_dora=use_dora,
+        from_checkpoint=checkpoint,
+    )
+
+    # 4. Wrap with PEFT
     model = get_peft_model(model, peft_config)
 
-    # Log trainable parameters once
-    logger.info(f"Model trainable parameters: {model.print_trainable_parameters()}")
+    # 5. Load PEFT weights if checkpoint exists
+    if checkpoint:
+        model.load_state_dict(checkpoint["peft_model_state_dict"], strict=False)
+        logger.info(f"Loaded PEFT weights from checkpoint: {metadata["latest_checkpoint"]}")
+    else:
+        logger.info("Initialized new PEFT adapter.")
 
-    return model.to(device)
+    # 6. Log trainable parameters
+    trainable_params, total_params = model.get_nb_trainable_parameters()
+    logger.info(
+        f"Trainable params: {trainable_params:,} || "
+        f"All params: {total_params:,} || "
+        f"Trainable%: {100 * trainable_params / total_params:.4f}%"
+    )
+
+    # 7. Move to device
+    return model.to(device), checkpoint
 
 
 def configure_peft_model_for_eval(
-        config_dict: Dict,
+        model: PreTrainedModel,
+        metadata: Dict,
+        config: Dict,
         device: str,
-) -> torch.nn.Module:
-    logger.info("Loading model for evaluation...")
-    # Select flash attention if available
-    attn = select_attn_implementation()
+        logger,
+) -> PreTrainedModel | PeftModel | torch.nn.Module:
+    method = config["active_method"]
+    logger.info(f"Configuring model for evaluation... Using PEFT method: {method}.")
 
-    # Base model
-    model = AutoModelForCausalLM.from_pretrained(
-        config_dict["model"]["model_name_or_path"],
-        low_cpu_mem_usage=True,
-        dtype=torch.bfloat16,
-        offload_folder="offload",
-        attn_implementation=attn,
-    )
-
-    # if it's a peft method
-    if config_dict["method"] not in ["base", "instruct"]:
+    if method not in {"base", "instruct"}:
         try:
-            adapter_checkpoint_path = config_dict["output_path"]
+            adapter_checkpoint_path = os.path.join("runs", metadata["run_id"], method, "checkpoints/best")
             logger.info(f"Loading adapter weights from {adapter_checkpoint_path}")
 
             model = PeftModelForCausalLM.from_pretrained(model, adapter_checkpoint_path)
 
             # merge logic if merge set True
-            if config_dict["merge"]:
+            if config["merge"]:
                 model = model.merge_and_unload()
 
         except ValueError as e:
-            logger.error(f"For method '{config_dict["method"]}' no checkpoints were found.")
+            logger.error(f"For method '{method}' no checkpoints were found.")
             raise e
 
     return model.to(device)

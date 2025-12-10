@@ -4,7 +4,7 @@ import torch
 from datasets import Dataset
 from transformers import AutoTokenizer
 
-from src.data_loader import (
+from src.dataloader import (
     format_prompt,
     tokenize,
     add_length,

@@ -3,13 +3,14 @@ project_name: "peft_lora_eval"
 mode: "test"
 
 # PEFT method
-method: "base"
+methods: ["base"]
+active_method: "base"
 
 # Model configuration
 model:
-  model_name_or_path: "meta-llama/Llama-3.1-8B-Instruct"
+#  model_name_or_path: "meta-llama/Llama-3.1-8B-Instruct"
 #  model_name_or_path: "meta-llama/Llama-3.2-3B-Instruct"
-#  model_name_or_path: "meta-llama/Llama-3.2-3B"
+  model_name_or_path: "meta-llama/Llama-3.2-3B"
 
 # Dataset configuration
 dataset_name: "yahma/alpaca-cleaned"
@@ -17,29 +18,8 @@ dataset_name: "yahma/alpaca-cleaned"
 dataloader:
   batch_size: 2
 
-# Training configuration
-#training:
-#  lr: 0.0001
-#  num_epochs: 3
-#  num_training_steps: 0
-#  grad_accumulation_steps: 4
-#  optimizer:
-#    weight_decay: 0.01
-#    betas: [0.9, 0.95]
-#    eps: 0.00000007
-#  scheduler:
-#    num_warmup_steps: 0
-
-# PEFT configuration (LoRA)
-#peft_config:
-#  r: 4
-#  lora_alpha: 8
-#  use_rslora: True
-#  target_modules: ['q_proj', 'v_proj']
-
 # Logging & experiment tracking
 logging:
-  log_every: 500
-  checkpoint_steps: 500
-  log_level: "DEBUG"
+  log_every: 100
+  checkpoint_step: 1000
   use_wandb: True

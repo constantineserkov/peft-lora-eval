@@ -51,7 +51,7 @@ def get_prompt() -> str:
 
 
 # run inference
-def run_inference(model: torch.nn.Module, tokenizer):
+def run_inference(model: torch.nn.Module, tokenizer, metadata):
     start_time = time.time()
     temp_metrics = {
         "latencies_ms": [],
