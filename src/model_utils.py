@@ -83,7 +83,7 @@ def configure_peft_model_for_training(
         metadata: Dict,
         config: Dict,
         device: str,
-        logger,
+        logger: logging.Logger,
 ) -> Tuple[PeftModel, Dict]:
     method = config["active_method"]
     logger.info(f"Configuring peft model using method: '{method}'")
@@ -143,7 +143,7 @@ def configure_peft_model_for_eval(
 
             model = PeftModelForCausalLM.from_pretrained(model, adapter_checkpoint_path)
 
-            # merge logic if merge set True
+            # merge logic (/src/utils.py parse_args)
             if config["merge"]:
                 model = model.merge_and_unload()
 

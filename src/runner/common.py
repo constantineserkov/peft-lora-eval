@@ -41,6 +41,7 @@ def init_run():
             "completed": [],
             "latest_checkpoint": None,
             "last_global_step": 0,
+            "merge": True,
             "note": None,
             "metadata_path": metadata_path,
             "immutable": {},  # Parameters that are fixed for a run_#. e.g. random seed

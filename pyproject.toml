@@ -13,6 +13,7 @@ dependencies = [
     "google>=3.0.0",
     "lm-eval>=0.4.9",
     "matplotlib>=3.10.6",
+    "notebook>=7.5.0",
     "nvidia-ml-py>=13.580.82",
     "peft>=0.17.1",
     "pytest>=8.4.2",
