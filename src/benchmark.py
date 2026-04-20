@@ -60,7 +60,7 @@ def extract_key_metrics(raw_results) -> Dict[str, float]:
     }
 
 
-def run_benchmarks(model, tokenizer, config, device, metadata):
+def run_benchmarks(model, tokenizer, metadata, config, device):
     metadata["metric_type"] = "benchmark"
 
     all_results = {}

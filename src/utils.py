@@ -44,7 +44,7 @@ def parse_args():
     parser.add_argument("--stages", type=str, default="eval", help="String of all stages in this format:"
                         "train/eval/inf/bench")
     parser.add_argument("--methods", type=str, default="base", help="Method name (LoRA/QLoRA/QDoRA)")
-    parser.add_argument("--merge", type=bool, default="True(str format is correct)", help="Merge base model with adapter.")
+    parser.add_argument("--merge", help="Merge adapter into the base model for eval/inference.")
     parser.add_argument("--seed", type=int, default=17, help="Seed number")
     parser.add_argument("--base-path", type=str, default="./", help="Current dir")
     parser.add_argument("--output-path", type=str, default=r"models\<method>_best", help="Checkpoint output path")

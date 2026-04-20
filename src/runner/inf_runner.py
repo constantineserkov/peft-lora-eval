@@ -2,7 +2,7 @@ from transformers import AutoTokenizer, PreTrainedModel
 from src.inference import run_inference
 from src.model_utils import configure_peft_model_for_eval
 
-def run_inf(model: PreTrainedModel, method, metadata, logger):
+def run_inf(model, method, metadata, logger):
     config = metadata["config"]
     device = metadata["device"]
 
