@@ -6,8 +6,6 @@ def run_train(model, method, metadata, logger):
     config = metadata["config"]
     device = metadata["device"]
 
-    config["active_method"] = method
-
     train_loader, val_loader, _, _ = unpack_loaders(config)
     model, checkpoint = configure_peft_model_for_training(model, metadata, config, device, logger)
 

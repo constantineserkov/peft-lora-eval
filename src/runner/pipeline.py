@@ -20,8 +20,11 @@ def run_pipeline():
     }
 
     for method, stage in plan:
+        config = metadata["config"]
+        config["active_method"] = method
+
         if method != cur_method:
-            model = init_base_model(method, metadata["config"], logger)
+            model = init_base_model(method, config, logger)
             cur_method = method
 
         run[stage](model, method, metadata, logger)

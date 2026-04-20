@@ -43,8 +43,8 @@ def parse_args():
     parser.add_argument("--log-level", default="INFO", help="Level of logging (DEBUG/INFO/WARNING/ERROR/CRITICAL)")
     parser.add_argument("--stages", type=str, default="eval", help="String of all stages in this format:"
                         "train/eval/inf/bench")
-    parser.add_argument("--methods", type=str, default="base", help="Method name (LoRA/QLoRA/QDoRA)")
-    parser.add_argument("--merge", help="Merge adapter into the base model for eval/inference.")
+    parser.add_argument("--methods", type=str, default="base", help="""Method name (this format: "LoRA/QLoRA/QDoRA")""")
+    parser.add_argument("--merge", action="store_true", help="Merge adapter into the base model for eval/inference.")
     parser.add_argument("--seed", type=int, default=17, help="Seed number")
     parser.add_argument("--base-path", type=str, default="./", help="Current dir")
     parser.add_argument("--output-path", type=str, default=r"models\<method>_best", help="Checkpoint output path")
@@ -58,9 +58,14 @@ def parse_args():
 def verify_parsed_args(args, logger):
     # NOT COMPLETE
     # verify argument parsing
-    if args.method.lower() not in ['lora', 'qlora', 'dora', 'qdora', 'base']:
-        logger.error(f"Invalid method '{args.method}'. Choose from: lora, qlora, qdora, base.")
-        raise ValueError(f"Invalid method '{args.method}'. Choose from: lora/qlora/qdora/base.")
+    # IT SHOULD LOOK SMTH LIKE THIS:
+    # methods = args.methods.lower().strip().split("/")
+    # for method in methods:
+    #     if method not in allowed:
+    #         ...
+    if args.methods.lower() not in ['lora', 'qlora', 'dora', 'qdora', 'base']:
+        logger.error(f"Invalid method '{args.methods}'. Choose from: lora, qlora, qdora, base.")
+        raise ValueError(f"Invalid method '{args.methods}'. Choose from: lora/qlora/qdora/base.")
 
     if not isinstance(args.seed, int):
         raise ValueError(f"Invalid seed '{args.seed}'. Must be integer.")
@@ -68,7 +73,8 @@ def verify_parsed_args(args, logger):
 
 def load_and_validate_config(args, logger):
     base_path = args.base_path
-    config_path = os.path.join("configs/", f"{args.method.lower()}_config.yaml")
+    # how should a shared run config + per-method config be loaded here?
+    config_path = os.path.join("configs/", f"{args.methods.lower()}_config.yaml")
     logger.debug(f"Config_path: {config_path}.")
 
     verify_parsed_args(args, logger)
@@ -76,7 +82,7 @@ def load_and_validate_config(args, logger):
     with open(os.path.join(base_path, config_path), "r") as f:
         config = safe_load(f)
         config["stages"] = args.stages.lower().strip().split("/")
-        config["method"] = args.method.lower().strip().split("/")
+        config["methods"] = args.methods.lower().strip().split("/")
         config["merge"] = args.merge
         config["seed"] = args.seed
         config["base_path"] = args.base_path
@@ -84,22 +90,23 @@ def load_and_validate_config(args, logger):
 
         config["use_small_model"] = bool(args.use_small_model)
 
-        config["output_path"] = args.output_path.replace("<method>", config["method"])
+        # config["output_path_template"] = args.output_path
+        # config["output_path"] = args.output_path.replace("<method>", config["active_method"])
         config["wandb_project"] = args.wandb_project
 
     return config
 
 
-def check_if_checkpoints_exist(config: Dict, logger):
-    # use only in run_evaluate.py
-    if os.path.exists(config["output_path"]):
-        logger.debug(f"Checkpoints exist at '{config["output_path"]}'")
-    else:
-        config["method"] = "base"
-        logger.warning(f"No checkpoints at '{config["output_path"]}'.\n"
-                       f"Only 'base' method is available. config['method'] set to {config['method']}.")
-        if (input("Do you want to proceed with method set to 'base'? Y/n?")).strip().lower() not in ['y', 'yes']:
-            sys.exit(1)
+# def check_if_checkpoints_exist(config: Dict, logger):
+#     # use only in run_evaluate.py
+#     if os.path.exists(config["output_path"]):
+#         logger.debug(f"Checkpoints exist at '{config["output_path"]}'")
+#     else:
+#         config["method"] = "base"
+#         logger.warning(f"No checkpoints at '{config["output_path"]}'.\n"
+#                        f"Only 'base' method is available. config['method'] set to {config['method']}.")
+#         if (input("Do you want to proceed with method set to 'base'? Y/n?")).strip().lower() not in ['y', 'yes']:
+#             sys.exit(1)
 
 
 def in_colab() -> bool:

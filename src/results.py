@@ -133,7 +133,7 @@ def save_results(
     # Build path
     model_name = config["model"]["model_name_or_path"]
     safe_model_name = model_name.replace('/', '_')  # replace '/' to avoid unnecessary folder creation
-    peft_method_name = config["method"]
+    peft_method_name = config["active_method"]
 
     if metadata["metric_type"] == "evaluator":
         save_dir = os.path.join("results", "metrics")

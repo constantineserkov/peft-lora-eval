@@ -6,8 +6,6 @@ def run_eval(model, method, metadata, logger):
     config = metadata["config"]
     device = metadata["device"]
 
-    config["active_method"] = method
-
     _, _, test_loader, _ = unpack_loaders(config)
     model = configure_peft_model_for_eval(model, metadata, config, device, logger)
 
