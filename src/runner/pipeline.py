@@ -15,7 +15,7 @@ def run_pipeline():
     run = {
         "train": run_train,
         "eval": run_eval,
-        "benchmark": run_bench,
+        "bench": run_bench,
         "inference": run_inf,
     }
 
