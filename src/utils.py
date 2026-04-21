@@ -98,7 +98,7 @@ def verify_parsed_args(args):
 def load_and_validate_run_config(args, logger):
     base_path = args.base_path
     config_path = args.config
-    logger.debug(f"Config_path: {config_path}.")
+    logger.debug(f"Run config path: {config_path}.")
 
     args = verify_parsed_args(args)
 
@@ -117,6 +117,17 @@ def load_and_validate_run_config(args, logger):
         config["runtime"]["base_path"] = args.base_path
         config["merge"] = args.merge
         config["use_small_model"] = args.use_small_model
+    return config
+
+
+def load_method_config(method, run_config, base_path, logger):
+    config_path = os.path.join(base_path, f"configs/methods/{method}.yaml")
+    logger.debug(f"Method config path: {config_path}.")
+
+    with open(config_path, "r") as f:
+        method_config = safe_load(f)
+        config = deep_merge(run_config, method_config)
+
     return config
 
 
