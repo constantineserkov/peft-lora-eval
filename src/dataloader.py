@@ -77,12 +77,12 @@ def split_and_sort_dataset(
     """
     # First split: train vs test
     temp_rt = val_ratio + test_ratio
-    split_1 = dataset.train_test_split(test_size=temp_rt, seed=config["seed"])
+    split_1 = dataset.train_test_split(test_size=temp_rt, seed=config["runtime"]["seed"])
     train_ds = split_1["train"]
     temp_ds = split_1["test"]
 
     # Second split: temp into val vs test
-    split_2 = temp_ds.train_test_split(test_size=test_ratio / temp_rt, seed=config["seed"])
+    split_2 = temp_ds.train_test_split(test_size=test_ratio / temp_rt, seed=config["runtime"]["seed"])
     val_ds = split_2["train"]
     test_ds = split_2["test"]
 
@@ -104,7 +104,7 @@ def split_and_sort_dataset(
 
 def get_tokenized_dataset(dataset, config):
     # For debugging
-    if config["use_small_model"]:
+    if config["runtime"]["use_small_model"]:
         logger.debug(f"config['use_small_model] = {config['use_small_model']}")
         config['model']['model_name_or_path'] = "gpt2"
         logger.debug(f"Using small model: '{config['model']['model_name_or_path']}'")
@@ -144,8 +144,8 @@ def get_dataloader(
 def unpack_loaders(config):
     # load dataset
     dataset = load_alpaca_data(
-        dataset_name=config["dataset_name"],
-        data_subset=config["data_subset"],
+        dataset_name=config["dataset"]["name"],
+        data_subset=config["dataset"]["subset"],
     )
 
     # format dataset
@@ -172,19 +172,19 @@ def unpack_loaders(config):
         train_ds,
         tokenizer,
         batch_size=config["dataloader"]["batch_size"],
-        seed=config["seed"],
+        seed=config["runtime"]["seed"],
     )
     val_loader = get_dataloader(
         val_ds,
         tokenizer,
         batch_size=config["dataloader"]["batch_size"],
-        seed=config["seed"],
+        seed=config["runtime"]["seed"],
     )
     test_loader = get_dataloader(
         test_ds,
         tokenizer,
         batch_size=config["dataloader"]["batch_size"],
-        seed=config["seed"],
+        seed=config["runtime"]["seed"],
     )
 
     return train_loader, val_loader, test_loader, tokenizer

@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import List, Dict, Tuple
 import json, datetime, time
+
 from src.utils import (
     parse_args,
     load_and_validate_run_config,
@@ -52,14 +53,14 @@ def init_run():
     device = resolve_device()
     logger.info(f"Device: {device}")
 
-    config = load_and_validate_run_config(args, logger)
-    set_seed(config["runtime"]["seed"], logger)
+    run_config = load_and_validate_run_config(args, logger)
+    set_seed(run_config["runtime"]["seed"], logger)
 
-    init_wandb(config, logger)
+    init_wandb(run_config, logger)
     init_hf_auth(logger)
 
     metadata["device"] = device
-    metadata["config"] = config
+    metadata["run_config"] = run_config
 
     metadata_path.write_text(json.dumps(metadata, indent=2))
     return run_dir, metadata, logger
@@ -68,9 +69,9 @@ def init_run():
 def resolve_stages(metadata) -> List[Tuple[str, str]]:
     completed = set(metadata.get("completed", []))
 
-    config = metadata["config"]
-    methods: List = config["methods"]
-    requested_stages = set(config["stages"])
+    run_config = metadata["run_config"]
+    methods: List = run_config["methods"]
+    requested_stages = set(run_config["stages"])
 
     plan = []
 

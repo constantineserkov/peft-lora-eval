@@ -115,18 +115,21 @@ def load_and_validate_run_config(args, logger):
             config["runtime"]["seed"] = args.seed
 
         config["runtime"]["base_path"] = args.base_path
-        config["merge"] = args.merge
-        config["use_small_model"] = args.use_small_model
+        config["runtime"]["merge"] = args.merge
+        config["runtime"]["use_small_model"] = args.use_small_model
     return config
 
 
-def load_method_config(method, run_config, base_path, logger):
+def load_method_config(method, run_config, logger):
+    base_path = run_config["runtime"]["base_path"]
     config_path = os.path.join(base_path, f"configs/methods/{method}.yaml")
     logger.debug(f"Method config path: {config_path}.")
 
     with open(config_path, "r") as f:
         method_config = safe_load(f)
-        config = deep_merge(run_config, method_config)
+
+    config = deep_merge(run_config, method_config)
+    config["active_method"] = method
 
     return config
 

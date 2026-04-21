@@ -2,8 +2,7 @@ from transformers import AutoTokenizer
 from src.benchmark import run_benchmarks
 from src.model_utils import configure_peft_model_for_eval
 
-def run_bench(model, method, metadata, logger):
-    config = metadata["config"]
+def run_bench(model, method, config, metadata, logger):
     device = metadata["device"]
 
     model = configure_peft_model_for_eval(model, metadata, config, device, logger)
