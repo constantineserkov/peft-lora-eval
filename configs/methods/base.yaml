@@ -1,0 +1,9 @@
+method: "base"
+
+training:
+  enabled: false
+
+peft_config: null
+
+quantization:
+  load_in_4bit: false

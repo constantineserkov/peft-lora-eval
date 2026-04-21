@@ -1,0 +1,19 @@
+method: "qdora"
+
+training:
+  lr: 0.0001
+
+peft_config:
+  r: 4
+  lora_alpha: 8
+  use_rslora: true
+  use_dora: true
+  target_modules:
+    - "q_proj"
+    - "v_proj"
+
+quantization:
+  load_in_4bit: true
+  bnb_4bit_quant_type: "nf4"
+  bnb_4bit_compute_dtype: "bfloat16"
+  bnb_4bit_use_double_quant: true

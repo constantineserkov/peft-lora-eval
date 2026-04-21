@@ -16,7 +16,7 @@ def run_pipeline():
         "train": run_train,
         "eval": run_eval,
         "bench": run_bench,
-        "inference": run_inf,
+        "inf": run_inf,
     }
 
     for method, stage in plan:

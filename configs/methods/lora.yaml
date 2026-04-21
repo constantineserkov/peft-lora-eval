@@ -1,0 +1,24 @@
+method: "lora"
+
+training:
+  lr: 0.0002
+
+dataloader:
+  batch_size: 1
+
+peft_config:
+  r: 4
+  lora_alpha: 8
+  use_rslora: true
+  use_dora: false
+  target_modules:
+    - "q_proj"
+    - "k_proj"
+    - "v_proj"
+    - "o_proj"
+    - "gate_proj"
+    - "up_proj"
+    - "down_proj"
+
+quantization:
+  load_in_4bit: false

@@ -41,7 +41,7 @@ def init_wandb(config, logger):
     if use_wandb:
         if check_wandb_api_key(logger):
             wandb.init(
-                project=config["project_name"],
+                project=config["logging"]["wandb_project"],
                 config=config,
                 dir="./results",
             )

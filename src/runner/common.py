@@ -3,7 +3,7 @@ from typing import List, Dict, Tuple
 import json, datetime, time
 from src.utils import (
     parse_args,
-    load_and_validate_config,
+    load_and_validate_run_config,
     set_seed,
     resolve_device,
     resolve_base_path,
@@ -37,7 +37,7 @@ def init_run():
             "wc_accumulated": Dict[str, datetime.timedelta],  # accumulated per method_stage time
             "all_wc": List[datetime.timedelta],  # accumulated times of all methods_stages in a list
             "method": None,  # lora/qlora/dora/qdora/base/instruct
-            "stage": None,  # training/eval/bench/inference
+            "stage": None,  # training/eval/bench/inf
             "completed": [],
             "latest_checkpoint": None,
             "last_global_step": 0,
@@ -52,8 +52,8 @@ def init_run():
     device = resolve_device()
     logger.info(f"Device: {device}")
 
-    config = load_and_validate_config(args, logger)
-    set_seed(config["seed"], logger)
+    config = load_and_validate_run_config(args, logger)
+    set_seed(config["runtime"]["seed"], logger)
 
     init_wandb(config, logger)
     init_hf_auth(logger)
@@ -75,13 +75,13 @@ def resolve_stages(metadata) -> List[Tuple[str, str]]:
     plan = []
 
     for method in methods:
-        # Dependency always: eval/bench/inference require train
+        # Dependency always: eval/bench/inf require train
         need_train = "train" in requested_stages
         need_eval = "eval" in requested_stages
         need_bench = "bench" in requested_stages
-        need_inf = "inference" in requested_stages
+        need_inf = "inf" in requested_stages
 
-        # If eval or inference requested, enforce train unless base or instruct model -> (don't require training)
+        # If eval or inf requested, enforce train unless base or instruct model -> (don't require training)
         if ((need_eval or need_inf or need_bench) and "train" not in requested_stages
                 and method.lower() not in {"base", "instruct"}):
             need_train = True
@@ -95,7 +95,7 @@ def resolve_stages(metadata) -> List[Tuple[str, str]]:
         if need_bench:
             ordered.append("bench")
         if need_inf:
-            ordered.append("inference")
+            ordered.append("inf")
 
         # CONVERT TO method_stage:
         for stage in ordered:
