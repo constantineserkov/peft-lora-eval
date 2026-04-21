@@ -15,7 +15,7 @@ from src.auth import init_wandb, init_hf_auth
 
 def init_run():
     # Local wall-clock time start that will add up (end-start) to wc_accumulated
-    wc_attempt_start = datetime.datetime.now()
+    wc_attempt_start = datetime.datetime.now().isoformat()
 
     args = parse_args()
     base_path = resolve_base_path(args)
@@ -35,15 +35,15 @@ def init_run():
             "run_id": run_dir.name,
             "attempt": 1,
             "wc_attempt_start": wc_attempt_start,
-            "wc_accumulated": Dict[str, datetime.timedelta],  # accumulated per method_stage time
-            "all_wc": List[datetime.timedelta],  # accumulated times of all methods_stages in a list
+            "wc_accumulated": {},  # accumulated per method_stage time
+            "all_wc": [],  # accumulated times of all methods_stages in a list
             "method": None,  # lora/qlora/dora/qdora/base/instruct
             "stage": None,  # training/eval/bench/inf
             "completed": [],
             "latest_checkpoint": None,
             "last_global_step": 0,
             "note": None,
-            "metadata_path": metadata_path,
+            "metadata_path": str(metadata_path),
             "immutable": {},  # Parameters that are fixed for a run_#. e.g. random seed
         }
 
@@ -108,8 +108,6 @@ def resolve_stages(metadata) -> List[Tuple[str, str]]:
 
 
 def save_metadata(metadata):
-    metadata_path = metadata["metadata_path"]
-    # update all times
+    metadata_path = Path(metadata["metadata_path"])
     metadata["updated_time"] = time.time()
-
     metadata_path.write_text(json.dumps(metadata, indent=2))

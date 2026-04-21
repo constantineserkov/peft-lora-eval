@@ -16,16 +16,16 @@ from src.checkpoint import load_checkpoint
 from src.utils import select_attn_implementation
 
 
-def _get_quantization_config(method: str) -> Optional[BitsAndBytesConfig]:
+def _get_quantization_config(method_quantization_config: Dict) -> Optional[BitsAndBytesConfig]:
     """Return BitsAndBytes config only for QLoRA/QDoRA."""
-    if method not in {"qlora", "qdora"}:
+    if not method_quantization_config.get("load_in_4bit", False):
         return None
 
     return BitsAndBytesConfig(
         load_in_4bit=True,
-        bnb_4bit_quant_type="nf4",
+        bnb_4bit_quant_type=method_quantization_config.get("bnb_4bit_quant_type", "nf4"),
         bnb_4bit_compute_dtype=torch.bfloat16,
-        bnb_4bit_use_double_quant=True,
+        bnb_4bit_use_double_quant=method_quantization_config.get("bnb_4bit_use_double_quant", True),
         bnb_4bit_quant_storage=torch.uint8,
     )
 
@@ -55,7 +55,7 @@ def init_base_model(
         logger: logging.Logger,
 ) -> PreTrainedModel:
     # 1. Quantization config (only for QLoRA/QDoRA)
-    quantization_config = _get_quantization_config(method)
+    quantization_config = _get_quantization_config(config["quantization"])
 
     # 2. Flash attention implementation
     attn = select_attn_implementation()
@@ -92,12 +92,12 @@ def configure_peft_model_for_training(
     checkpoint = load_checkpoint(config, metadata, logger)
 
     # 2. Prepare for k-bit training if needed (only needed for 4-bit)
-    quantization_config = _get_quantization_config(method)  # Re-get to check if quantized
+    quantization_config = _get_quantization_config(config["quantization"])  # Re-get to check if quantized
     if quantization_config:
         model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
 
     # 3. Create or restore PEFT config
-    use_dora = method in {"dora", "qdora"}
+    use_dora = config["peft_config"].get("use_dora", False)
     peft_config = _get_lora_config(
         base_config=config["peft_config"],
         use_dora=use_dora,

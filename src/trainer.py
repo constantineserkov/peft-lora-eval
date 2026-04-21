@@ -56,7 +56,7 @@ def train_model(
 
     log_every = config["logging"]["log_every"]
     g = config["training"]["grad_accumulation_steps"]
-    checkpoint_step = config["logging"]["checkpoint_step"]
+    checkpoint_steps = config["logging"]["checkpoint_steps"]
 
     # Load checkpoint data if checkpoint exists
     if checkpoint:
@@ -171,7 +171,7 @@ def train_model(
                             save_best(best_loss, model, epoch, step, config, metadata, logger)
 
                         # Save checkpoint every N steps
-                        if (step + 1) % checkpoint_step == 0:
+                        if (step + 1) % checkpoint_steps == 0:
                             save_checkpoint(model, optimizer, scheduler, scaler, epoch, step, best_loss, config, metadata, logger)
 
                         ## Log metrics

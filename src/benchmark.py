@@ -42,7 +42,7 @@ def run_lm_eval(model, tokenizer, config_dict: Dict):
 
     results = lm_eval.evaluator.simple_evaluate(
         model=lm,
-        tasks=config_dict["benchmark_tasks"],
+        tasks=config_dict["benchmark"]["tasks"],
         batch_size=batch_size,
         no_cache=True
     )
@@ -61,26 +61,14 @@ def extract_key_metrics(raw_results) -> Dict[str, float]:
 
 
 def run_benchmarks(model, tokenizer, metadata, config, device):
+    # metadata["metric_type"] = "benchmark"
+    #
+    # all_results = {}
+    # os.makedirs("results/benchmarks", exist_ok=True)
     metadata["metric_type"] = "benchmark"
 
-    all_results = {}
-    os.makedirs("results/benchmarks", exist_ok=True)
+    raw_results = run_lm_eval(model, tokenizer, config)
+    metrics = extract_key_metrics(raw_results)
 
-    for idx, path in enumerate(MODEL_PATHS):
-        try:
-            model_name = os.path.basename(path)
-            logger.info(f"\n{'=' * 60}\nBenchmarking {model_name}\n{'=' * 60}")
-            logger.info(f"Model: {idx+1}/{len(MODEL_PATHS)}")
-
-            raw_results = run_lm_eval(model, tokenizer, config)
-            metrics = extract_key_metrics(raw_results)
-
-            all_results[model_name] = metrics
-
-            save_results(metrics, metadata, config)
-
-            # clean GPU memory
-            del model, tokenizer
-            torch.cuda.empty_cache()
-        except Exception as e:
-            logger.error(f"Unexpected error: {e}.\nModels{len({MODEL_PATHS[idx:]})}: {MODEL_PATHS[idx:]} were not benchmarked")
+    save_results(metrics, metadata, config, logger)
+    return metrics
