@@ -11,3 +11,5 @@ def run_inf(model, method, config, metadata, logger):
     tokenizer.pad_token = tokenizer.eos_token
 
     run_inference(model, tokenizer, metadata)
+
+    return model

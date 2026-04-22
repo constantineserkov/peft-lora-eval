@@ -9,3 +9,5 @@ def run_eval(model, method, config, metadata, logger):
     model = configure_peft_model_for_eval(model, metadata, config, device, logger)
 
     evaluator(model, test_loader, config, device, logger, metadata)
+
+    return model

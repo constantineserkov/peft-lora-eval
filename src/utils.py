@@ -1,12 +1,13 @@
 import os
 import sys
+from copy import deepcopy
 from yaml import safe_load
 import random
 import numpy as np
 import torch
 import transformers
 from torch.utils.data import DataLoader
-from typing import Dict
+from typing import Dict, Tuple
 import argparse
 import pynvml
 
@@ -30,7 +31,8 @@ def set_seed(seed, logger):
 
 # Ensure configs are merged recursively
 def deep_merge(a: dict, b: dict) -> dict:
-    result = a.copy()
+    # result = a.copy()
+    result = deepcopy(a)
     for key, value in b.items():
         if (
             key in result
@@ -41,6 +43,18 @@ def deep_merge(a: dict, b: dict) -> dict:
         else:
             result[key] = value
     return result
+
+
+def get_model_cache_key(config: Dict) -> Tuple:
+    q = config.get("quantization", {})
+
+    return (
+        config["model"]["model_name_or_path"],
+        q.get("load_in_4bit", False),
+        q.get("bnb_4bit_quant_type"),
+        q.get("bnb_4bit_compute_dtype"),
+        q.get("bnb_4bit_use_double_quant"),
+    )
 
 
 def get_num_training_steps(dataloader: DataLoader, config_dict: Dict):

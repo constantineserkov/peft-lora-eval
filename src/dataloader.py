@@ -60,22 +60,21 @@ def get_cleaned_sorted_dataset(dataset):
 def split_and_sort_dataset(
         dataset: Dataset,
         config: Dict,
-        val_ratio: float = 0.05,
-        test_ratio: float = 0.05,
 ) -> Dict[str, Dataset]:
     """
     Split dataset into train/val/test, add lengths, clean, and sort each by length.
 
     Args:
         dataset: Full HF Dataset (tokenized).
-        val_ratio: Val proportion
-        test_ratio: Test proportion. Proportions must sum to 1.0.
         config: Dict.
 
     Returns:
         Dict of {'train': Dataset, 'val': Dataset, 'test': Dataset}.
     """
     # First split: train vs test
+    val_ratio = config["dataset"]["val_ratio"]
+    test_ratio = config["dataset"]["test_ratio"]
+
     temp_rt = val_ratio + test_ratio
     split_1 = dataset.train_test_split(test_size=temp_rt, seed=config["runtime"]["seed"])
     train_ds = split_1["train"]
@@ -103,14 +102,13 @@ def split_and_sort_dataset(
 
 
 def get_tokenized_dataset(dataset, config):
-    # For debugging
+    model_name = config["model"]["model_name_or_path"]
     if config["runtime"]["use_small_model"]:
-        logger.debug(f"config['use_small_model] = {config['use_small_model']}")
-        config['model']['model_name_or_path'] = "gpt2"
-        logger.debug(f"Using small model: '{config['model']['model_name_or_path']}'")
+        model_name = "gpt2"
+        logger.debug(f"Using small model: '{model_name}'")
 
     # tokenize dataset
-    tokenizer = AutoTokenizer.from_pretrained(config['model']['model_name_or_path'], padding_side="left")
+    tokenizer = AutoTokenizer.from_pretrained(model_name, padding_side="left")
 
     tokenizer.pad_token = tokenizer.eos_token
     tokenized_dataset = dataset.map(

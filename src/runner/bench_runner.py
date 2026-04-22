@@ -11,3 +11,5 @@ def run_bench(model, method, config, metadata, logger):
     tokenizer.pad_token = tokenizer.eos_token
 
     run_benchmarks(model, tokenizer, metadata, config, device)
+
+    return model

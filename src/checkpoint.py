@@ -16,6 +16,12 @@ def load_checkpoint(
     """
     active_method = config["active_method"]
     latest_checkpoint = metadata.get("latest_checkpoint")
+    latest_checkpoint_method = metadata.get("latest_checkpoint_method")
+
+    if latest_checkpoint_method != active_method:
+        logger.info(f"No checkpoint for method '{active_method}'. Starting from scratch.")
+        return None
+
     checkpoint_dir = os.path.join("runs", metadata["run_id"], active_method, "checkpoints/resume")
     checkpoint_path = os.path.join(checkpoint_dir, latest_checkpoint)
     os.makedirs(checkpoint_dir, exist_ok=True)

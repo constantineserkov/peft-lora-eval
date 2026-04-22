@@ -78,6 +78,24 @@ def init_base_model(
     return model
 
 
+def cleanup_model_for_cache(model, config: Dict, logger):
+    """
+    Return a clean base model suitable for caching.
+
+    If model is PEFT-wrapped, unload adapter weights without merging.
+    If unloading is unavailable, return None so caller can evict cache entry.
+    """
+    if isinstance(model, PeftModel):
+        if hasattr(model, "unload"):
+            logger.info("Unloading PEFT adapter before returning model to cache.")
+            return model.unload()
+
+        logger.warning("PEFT model cannot be unloaded safely; evicting from model cache.")
+        return None
+
+    return model
+
+
 def configure_peft_model_for_training(
         model: PreTrainedModel,
         metadata: Dict,

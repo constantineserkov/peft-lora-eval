@@ -9,3 +9,5 @@ def run_train(model, method, config, metadata, logger):
     model, checkpoint = configure_peft_model_for_training(model, metadata, config, device, logger)
 
     train_model(model, device, config, metadata, checkpoint, logger, train_loader, val_loader)
+
+    return model
