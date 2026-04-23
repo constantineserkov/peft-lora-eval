@@ -1,5 +1,5 @@
-from transformers.models.auto.image_processing_auto import model_type
-
+import gc
+import torch.cuda
 from src.model_utils import init_base_model, cleanup_model_for_cache
 from src.utils import load_method_config, get_model_cache_key
 from src.runner.common import init_run, resolve_stages, save_metadata
@@ -15,10 +15,8 @@ def run_pipeline():
 
     run_config = metadata["run_config"]
 
-    # model = None
-    # cur_method = None
-    # config = None
-    model_cache = {}
+    cached_model = None
+    cached_model_key = None
     config_cache = {}
 
     run = {
@@ -29,11 +27,6 @@ def run_pipeline():
     }
 
     for method, stage in plan:
-        # if method != cur_method:
-        #     config = load_method_config(method, run_config, logger)
-        #     model = init_base_model(method, config, logger)
-        #     cur_method = method
-
         if method not in config_cache:
             config_cache[method] = load_method_config(method, run_config, logger)
 
@@ -47,10 +40,18 @@ def run_pipeline():
         )
 
         if use_cache:
-            if model_key not in model_cache:
-                model_cache[model_key] = init_base_model(method, config, logger)
+            if cached_model_key != model_key:
+                if  cached_model is not None:
+                    logger.info("Model config changed. Releasing cached model.")
+                    del cached_model
+                    gc.collect()
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
 
-            model = model_cache[model_key]
+                cached_model = init_base_model(method, config, logger)
+                cached_model_key = model_key
+
+            model = cached_model
         else:
             logger.warning("merge=True disables model cache for this stage. Initializing the base model.")
             model = init_base_model(method, config, logger)
@@ -63,11 +64,23 @@ def run_pipeline():
 
         if use_cache:
             clean_model = cleanup_model_for_cache(stage_model, config, logger)
+            logger.info(f"Returned model to cache for key: {model_key}")
 
             if clean_model is None:
-                model_cache.pop(model_key, None)
+                logger.warning("Could not clean model for reuse. Releasing cached model.")
+                del stage_model
+                cached_model = None
+                cached_model_key = None
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
             else:
-                model_cache[model_key] = clean_model
+                cached_model = clean_model
+        else:
+            del stage_model
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
         metadata["completed"].append(f"{method}_{stage}")
         save_metadata(metadata)
