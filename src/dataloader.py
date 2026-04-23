@@ -161,9 +161,12 @@ def unpack_loaders(config):
     train_ds, val_ds, test_ds = datasets.values()
 
     # debug
-    logger.debug(f"Tokenized train dataset sample: {train_ds[0]}\n\n"
-                 f"Tokenized val dataset sample: {val_ds[1]}\n\n"
-                 f"Tokenized test dataset sample: {test_ds[2]}")
+    try:
+        logger.debug(f"Tokenized train dataset sample: {train_ds[0]}\n\n"
+                     f"Tokenized val dataset sample: {val_ds[1]}\n\n"
+                     f"Tokenized test dataset sample: {test_ds[2]}")
+    except IndexError as e:
+        logger.error(f"Split sizes -> train: {len(train_ds)}, val: {len(val_ds)}, test: {len(test_ds)}")
 
     # Load dataloaders
     train_loader = get_dataloader(
