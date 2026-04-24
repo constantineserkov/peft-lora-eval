@@ -143,6 +143,12 @@ def configure_peft_model_for_training(
     method = config["active_method"]
     logger.info(f"Configuring peft model using method: '{method}'")
 
+    if config.get("peft_config") is None:
+        raise ValueError(
+            f"Method '{method}' cannot be configured for PEFT training because peft_config is null. "
+            "Set training.enabled: false for non-trainable methods, or provide a peft_config."
+        )
+
     # 1. Load checkpoint (if any)
     checkpoint = load_checkpoint(config, metadata, logger)
 

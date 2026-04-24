@@ -5,6 +5,10 @@ from src.dataloader import unpack_loaders
 def run_train(model, method, config, metadata, logger):
     device = metadata["device"]
 
+    if not config.get("training", {}).get("enabled", True):
+        logger.info(f"Training disabled for method '{method}'. Skipping train stage.")
+        return model
+
     train_loader, val_loader, _, _ = unpack_loaders(config)
     model, checkpoint = configure_peft_model_for_training(model, metadata, config, device, logger)
 
