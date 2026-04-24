@@ -170,7 +170,13 @@ def format_comparison_table(df: pd.DataFrame) -> str:
         errors="ignore",
     )
 
-    return display_df.to_string(index=False)
+    with pd.option_context(
+        "display.max_columns", None,
+        "display.width", 160,
+        "display.max_colwidth", 40,
+        "display.float_format", "{:.4f}".format,
+    ):
+        return repr(display_df.reset_index(drop=True))
 
 
 def print_comparison_tables(
