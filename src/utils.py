@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import transformers
 from torch.utils.data import DataLoader
-from typing import Dict, Tuple
+from typing import Dict, Tuple, cast
 import argparse
 import pynvml
 
@@ -203,3 +203,7 @@ def resolve_base_path(args):
         return p
     else:
         return args.base_path
+
+
+def project_path(config: Dict, *parts: str) -> str:
+    return os.path.join(cast(str, config["runtime"]["base_path"]), *parts)  # cast is not the best solution here

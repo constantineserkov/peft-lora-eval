@@ -35,6 +35,7 @@ logging:
 
 
 benchmark:
+  batch_size: 1
   tasks:
     - "arc_challenge"
     - "hellaswag"
@@ -42,6 +43,16 @@ benchmark:
     - "truthfulqa_mc2"
     - "winogrande"
     - "gsm8k"
+  metrics:
+    arc_challenge: "acc_norm,none"
+    hellaswag: "acc_norm,none"
+    mmlu: "acc,none"
+    truthfulqa_mc2: "acc,none"
+    winogrande: "acc,none"
+    gsm8k: "exact_match,strict-match"
+  num_fewshot: null
+  limit: 2
+  use_cache: false
 
 runtime:
   seed: 17

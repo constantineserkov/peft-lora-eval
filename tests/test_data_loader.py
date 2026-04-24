@@ -6,7 +6,7 @@ from transformers import AutoTokenizer
 
 from src.dataloader import (
     format_prompt,
-    tokenize,
+    tokenize_supervised_causal_lm_batch,
     add_length,
     get_cleaned_sorted_dataset,
     get_dataloader,
@@ -38,7 +38,7 @@ def test_format_prompt(small_dataset):
 
 def test_tokenize_and_labels(tokenizer, small_dataset):
     batch = small_dataset.add_column("prompt", ["Prompt1", "Prompt2"])[:2]
-    result = tokenize(batch, tokenizer)
+    result = tokenize_supervised_causal_lm_batch(batch, tokenizer)
     assert "input_ids" in result
     assert "attention_mask" in result
     assert "labels" in result
@@ -50,7 +50,7 @@ def test_tokenize_and_labels(tokenizer, small_dataset):
 def test_add_length(tokenizer, small_dataset):
     # tokenize first so input_ids exist
     batch = small_dataset.add_column("prompt", ["Prompt1", "Prompt2"])[:2]
-    tokenized = tokenize(batch, tokenizer)
+    tokenized = tokenize_supervised_causal_lm_batch(batch, tokenizer)
     example = {
         "input_ids": tokenized["input_ids"][0],
         "attention_mask": tokenized["attention_mask"][0],
@@ -65,7 +65,7 @@ def test_get_cleaned_sorted_dataset(tokenizer, small_dataset):
     # prepare dataset with length column
     prompts = format_prompt(small_dataset[:2])
     tmp_ds = small_dataset.add_column("prompt", prompts["prompt"])
-    tokenized = tmp_ds.map(lambda b: tokenize(b, tokenizer), batched=True)
+    tokenized = tmp_ds.map(lambda b: tokenize_supervised_causal_lm_batch(b, tokenizer), batched=True)
     ds = tokenized.map(add_length)
     cleaned = get_cleaned_sorted_dataset(ds)
     # check columns dropped

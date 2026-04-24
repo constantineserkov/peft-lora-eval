@@ -5,6 +5,8 @@ import torch.nn
 from src.runner.common import save_metadata
 from peft import get_peft_model_state_dict, PeftModel
 
+from src.utils import project_path
+
 
 def load_checkpoint(
     config: dict[str, Any],
@@ -20,10 +22,9 @@ def load_checkpoint(
     active_method = config["active_method"]
     latest_checkpoint = metadata.get("latest_checkpoint")
     latest_checkpoint_method = metadata.get("latest_checkpoint_method")
-    base_path = cast(str, config["runtime"]["base_path"])  # cast is not the best solution here
 
-    checkpoint_dir = os.path.join(
-        base_path,
+    checkpoint_dir = project_path(
+        config,
         "runs",
         metadata["run_id"],
         active_method,
@@ -63,7 +64,7 @@ def save_best(
     Saves best val_loss checkpoints
     """
     active_method = config["active_method"]
-    checkpoint_dir = os.path.join("runs", metadata["run_id"], active_method, "checkpoints/best")
+    checkpoint_dir = project_path(config, "runs", metadata["run_id"], active_method, "checkpoints/best")
 
     model.save_pretrained(checkpoint_dir)  # saves adapter weights + peft config
     logger.info(f"New best model saved at (epoch {epoch} | step {step}) with eval_loss: \033[1;91m{best_loss:.4f}\033[0m")
@@ -85,7 +86,7 @@ def save_checkpoint(
     """
     active_method = config["active_method"]
     checkpoint_name = f"checkpoint_epoch_{epoch}_step_{step}.pt" if not final else "final.pt"
-    checkpoint_dir = os.path.join("runs", metadata["run_id"], active_method, "checkpoints/resume")
+    checkpoint_dir = project_path(config, "runs", metadata["run_id"], active_method, "checkpoints/resume")
     checkpoint_path = os.path.join(checkpoint_dir, checkpoint_name)
     os.makedirs(checkpoint_dir, exist_ok=True)
 
@@ -102,12 +103,13 @@ def save_checkpoint(
     torch.save(checkpoint, checkpoint_path)
 
     metadata["latest_checkpoint"] = checkpoint_name
+    metadata["latest_checkpoint_method"] = active_method
     save_metadata(metadata)
 
     logger.info(f"Checkpoint saved.\nEpoch: {epoch}\nStep: {step}")
 
     # Optional: clean   old checkpoints
-    clean_checkpoints(dir_path=checkpoint_dir, ignore=set(checkpoint_name))
+    clean_checkpoints(dir_path=checkpoint_dir, ignore={checkpoint_name})
 
 
 def clean_checkpoints(dir_path, ignore=None) -> None:

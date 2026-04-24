@@ -24,11 +24,15 @@ def run_lm_eval(model, tokenizer, config_dict: Dict, device) -> tuple[Dict[str, 
     )
 
     with measure_runtime_and_peak_vram(device) as benchmark_stats:
+        benchmark_config = config_dict["benchmark"]
+
         results = lm_eval.evaluator.simple_evaluate(
             model=lm,
-            tasks=config_dict["benchmark"]["tasks"],
+            tasks=benchmark_config["tasks"],
+            num_fewshot=benchmark_config.get("num_fewshot"),
             batch_size=batch_size,
-            no_cache=True,
+            no_cache=not benchmark_config.get("use_cache", False),
+            limit=benchmark_config.get("limit"),
         )
 
     benchmark_stats["batch_size"] = batch_size

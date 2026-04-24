@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, cast
 import torch
 from transformers import (
     AutoModelForCausalLM,
@@ -19,7 +19,7 @@ from peft import (
 )
 
 from src.checkpoint import load_checkpoint
-from src.utils import select_attn_implementation
+from src.utils import select_attn_implementation, project_path
 
 
 def _get_quantization_config(method_quantization_config: Dict) -> Optional[BitsAndBytesConfig]:
@@ -195,7 +195,7 @@ def configure_peft_model_for_eval(
 
     if method not in {"base", "instruct"}:
         try:
-            adapter_checkpoint_path = os.path.join("runs", metadata["run_id"], method, "checkpoints/best")
+            adapter_checkpoint_path = project_path(config, "runs", metadata["run_id"], method, "checkpoints/best")
             logger.info(f"Loading adapter weights from {adapter_checkpoint_path}")
 
             model = PeftModelForCausalLM.from_pretrained(model, adapter_checkpoint_path)

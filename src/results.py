@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import wandb
 
+from src.utils import project_path
+
 
 def generate_and_save_plots(
         metrics: Dict,
@@ -136,12 +138,11 @@ def save_results(
     model_name = config["model"]["model_name_or_path"]
     safe_model_name = model_name.replace('/', '_')  # replace '/' to avoid unnecessary folder creation
     peft_method_name = config["active_method"]
-    base_path = config["runtime"]["base_path"]
 
     if metadata["metric_type"] == "evaluator":
-        save_dir = os.path.join(base_path, "results", "metrics")
+        save_dir = project_path(config, "results", "metrics")
     elif metadata["metric_type"] == "benchmark":
-        save_dir = os.path.join(base_path, "results", "benchmarks")
+        save_dir = project_path(config, "results", "benchmarks")
     else:
         raise ValueError(f"Unusual metric_type: {metadata["metric_type"]}. Should be either 'evaluator', or 'benchmark'")
 
