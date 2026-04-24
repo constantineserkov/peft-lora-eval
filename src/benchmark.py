@@ -2,6 +2,7 @@ from typing import Dict, Any
 import lm_eval
 from lm_eval.models.huggingface import HFLM
 from src.results import save_results
+from src.metrics import measure_runtime_and_peak_vram
 
 
 DEFAULT_BENCHMARK_METRICS = {
@@ -12,7 +13,8 @@ DEFAULT_BENCHMARK_METRICS = {
     "winogrande": "acc,none",
 }
 
-def run_lm_eval(model, tokenizer, config_dict: Dict) -> Dict[str, Any]:
+def run_lm_eval(model, tokenizer, config_dict: Dict, device) -> tuple[Dict[str, Any], Dict[str, Any]]:
+
     batch_size = config_dict["benchmark"]["batch_size"]
 
     lm = HFLM(
@@ -21,12 +23,17 @@ def run_lm_eval(model, tokenizer, config_dict: Dict) -> Dict[str, Any]:
         batch_size=batch_size
     )
 
-    return lm_eval.evaluator.simple_evaluate(
-        model=lm,
-        tasks=config_dict["benchmark"]["tasks"],
-        batch_size=batch_size,
-        no_cache=True,
-    )
+    with measure_runtime_and_peak_vram(device) as benchmark_stats:
+        results = lm_eval.evaluator.simple_evaluate(
+            model=lm,
+            tasks=config_dict["benchmark"]["tasks"],
+            batch_size=batch_size,
+            no_cache=True,
+        )
+
+    benchmark_stats["batch_size"] = batch_size
+
+    return results, benchmark_stats
 
 
 def extract_key_metrics(
@@ -63,7 +70,7 @@ def extract_key_metrics(
 def run_benchmarks(model, tokenizer, config, device, logger, metadata):
     metadata["metric_type"] = "benchmark"
 
-    lm_eval_output = run_lm_eval(model, tokenizer, config)
+    lm_eval_output, benchmark_stats = run_lm_eval(model, tokenizer, config, device)
     raw_results = lm_eval_output["results"]
 
     metric_mapping = config["benchmark"].get(
@@ -75,6 +82,7 @@ def run_benchmarks(model, tokenizer, config, device, logger, metadata):
 
     metrics = {
         "summary": summary,
+        "benchmark": benchmark_stats,
         "raw": raw_results,
         "configs": lm_eval_output.get("configs"),
         "versions": lm_eval_output.get("versions"),

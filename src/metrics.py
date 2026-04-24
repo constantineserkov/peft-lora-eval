@@ -1,6 +1,10 @@
-from typing import Optional, Dict
 import numpy as np
 import pynvml
+import time
+from contextlib import contextmanager
+from typing import Any, Dict, Optional
+import torch
+
 # HOW TO SAVE METRICS AND CHECKPOINTS PATHS
 # metadata["artifacts"][method] = {
 #     "checkpoint": "checkpoints/lora/final.pt",
@@ -11,6 +15,35 @@ import pynvml
 #         "eval": "plots/lora_eval_loss.png"
 #     }
 # }
+
+
+def _is_cuda_device(device: str) -> bool:
+    return torch.cuda.is_available() and str(device).startswith("cuda")
+
+
+@contextmanager
+def measure_runtime_and_peak_vram(device: str):
+    if _is_cuda_device(device):
+        torch.cuda.reset_peak_memory_stats(device)
+        torch.cuda.synchronize(device)
+
+    start_time = time.perf_counter()
+
+    yield_data: Dict[str, Any] = {}
+    try:
+        yield yield_data
+    finally:
+        if _is_cuda_device(device):
+            torch.cuda.synchronize(device)
+
+        elapsed_seconds = time.perf_counter() - start_time
+
+        yield_data["elapsed_seconds"] = round(elapsed_seconds, 2)
+        yield_data["peak_vram_torch_gb"] = (
+            round(torch.cuda.max_memory_allocated(device) / 1e9, 4)
+            if _is_cuda_device(device)
+            else None
+        )
 
 
 def log_vram_usage(device_index: int = 0) -> float:
