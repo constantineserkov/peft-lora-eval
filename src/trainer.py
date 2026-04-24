@@ -23,7 +23,7 @@ def setup_optimizer(
         config: Dict
 ) -> Optimizer:
     return PagedAdamW8bit(
-        torch.Tensor(model.parameters()),
+        model.parameters(),
         lr=config['training']['lr'],
         weight_decay=config['training']['optimizer']['weight_decay'],
         betas=config['training']['optimizer']['betas'],
