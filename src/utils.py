@@ -1,5 +1,6 @@
 import os
 import sys
+import math
 from copy import deepcopy
 from yaml import safe_load
 import random
@@ -58,7 +59,11 @@ def get_model_cache_key(config: Dict) -> Tuple:
 
 
 def get_num_training_steps(dataloader: DataLoader, config_dict: Dict):
-    return config_dict['training']['num_epochs'] * (len(dataloader) // config_dict['training']['grad_accumulation_steps'])
+    num_epochs = config_dict["training"]["num_epochs"]
+    grad_accumulation_steps = config_dict["training"]["grad_accumulation_steps"]
+    update_steps_per_epoch = math.ceil(len(dataloader) / grad_accumulation_steps)
+
+    return num_epochs * update_steps_per_epoch
 
 
 def get_num_warmup_steps(num_training_steps: int) -> int:
