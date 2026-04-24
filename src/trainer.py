@@ -186,7 +186,7 @@ def train_model(
                                     f"Avg. train loss: {metrics["train_loss"]}\n"
                                     f"Avg. valid. loss: {metrics["eval_loss"]}\n"
                                     f"Perplexity: {metrics["perplexity"]}\n"
-                                    f"LR: {current_lr:.1e}"
+                                    f"LR: {current_lr:.1e} | "
                                     f"VRAM usage: {metrics["vram_usage"]} GiB")
                 else:
                     logger.info(f"Avg. train loss: {avg_train_loss} | VRAM usage: {log_vram_usage()} GiB")

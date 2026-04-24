@@ -93,6 +93,14 @@ def init_base_model(
 ) -> PreTrainedModel:
     # 1. Quantization config (only for QLoRA/QDoRA)
     quantization_config = _get_quantization_config(config["quantization"])
+    if quantization_config is None:
+        logger.info("Loading base model in non-quantized mode.")
+    else:
+        logger.info(
+            "Loading base model with 4-bit quantization: type=%s, double_quant=%s",
+            config["quantization"].get("bnb_4bit_quant_type"),
+            config["quantization"].get("bnb_4bit_use_double_quant"),
+        )
 
     # 2. Flash attention implementation
     attn = select_attn_implementation()
@@ -110,7 +118,16 @@ def init_base_model(
         attn_implementation=attn,
         trust_remote_code=True
     )
-    logger.info("Base model has been loaded successfully.")
+    logger.info(
+        "Base model loaded successfully for method '%s'. Quantized: %s",
+        method,
+        quantization_config is not None,
+    )
+    logger.info(
+        "Model quantization flags: is_loaded_in_4bit=%s, is_loaded_in_8bit=%s",
+        getattr(model, "is_loaded_in_4bit", False),
+        getattr(model, "is_loaded_in_8bit", False),
+    )
 
     return model
 
