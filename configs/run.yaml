@@ -51,7 +51,7 @@ benchmark:
     winogrande: "acc,none"
     gsm8k: "exact_match,strict-match"
   num_fewshot: null
-  limit: 2
+  limit: null
   use_cache: false
 
 runtime:
