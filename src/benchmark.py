@@ -32,7 +32,7 @@ def run_lm_eval(model, tokenizer, config_dict: Dict, device) -> tuple[Dict[str, 
             tasks=benchmark_config["tasks"],
             num_fewshot=benchmark_config.get("num_fewshot"),
             batch_size=batch_size,
-            no_cache=not benchmark_config.get("use_cache", False),
+            use_cache=benchmark_config.get("use_cache", False),
             limit=benchmark_config.get("limit"),
         )
 

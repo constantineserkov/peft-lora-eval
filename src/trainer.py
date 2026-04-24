@@ -165,6 +165,7 @@ def train_model(
 
                         # Update per epoch metrics
                         per_epoch_metrics["val_losses"].append(avg_val_loss)
+                        per_epoch_metrics["perplexity"].append(metrics["perplexity"])
                         per_epoch_metrics["vram_usage"].append(metrics["vram_usage"])
 
                         ## Save checkpoints
