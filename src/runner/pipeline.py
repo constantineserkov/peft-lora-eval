@@ -1,5 +1,7 @@
 import gc
+import contextlib
 import torch.cuda
+import wandb
 from src.model_utils import init_base_model, cleanup_model_for_cache
 from src.utils import load_method_config, get_model_cache_key
 from src.runner.common import init_run, resolve_stages, save_metadata
@@ -88,3 +90,6 @@ def run_pipeline():
     # Comparison runner
     create_comparison_tables(run_config, metadata, logger)
     logger.info("Pipeline ran successfully. Exiting.")
+
+    with contextlib.suppress(Exception):
+        wandb.finish()

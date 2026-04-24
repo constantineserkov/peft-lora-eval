@@ -180,7 +180,8 @@ def train_model(
                         ## Log metrics
                         # Get current learning rate
                         current_lr = scheduler.get_last_lr()[0]  # get_last_lr() -> List[float]
-                        wandb.log({"lr": current_lr})
+                        with contextlib.suppress(Exception):
+                            wandb.log({"lr": current_lr})
                         logger.info(f"Step: {step}\n"
                                     f"Avg. train loss: {metrics["train_loss"]}\n"
                                     f"Avg. valid. loss: {metrics["eval_loss"]}\n"
@@ -236,6 +237,3 @@ def train_model(
         torch.cuda.empty_cache()
     with contextlib.suppress(pynvml.NVMLError):
         pynvml.nvmlShutdown()
-
-    with contextlib.suppress(Exception):
-        wandb.finish()

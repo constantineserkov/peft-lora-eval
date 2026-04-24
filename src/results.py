@@ -1,4 +1,5 @@
 import os
+import contextlib
 from typing import Dict
 import json
 from datetime import datetime
@@ -7,6 +8,14 @@ import numpy as np
 import wandb
 
 from src.utils import project_path
+
+
+def _log_wandb(data: Dict) -> None:
+    if wandb.run is None:
+        return
+
+    with contextlib.suppress(Exception):
+        wandb.log(data)
 
 
 def generate_and_save_plots(
@@ -46,7 +55,7 @@ def generate_and_save_plots(
     loss_path = os.path.join(evaluation_dir, "loss_vs_batch.png")
     plt.savefig(loss_path, dpi=150)
     plt.close()
-    wandb.log({"loss_curve": wandb.Image(loss_path)})
+    _log_wandb({"loss_curve": wandb.Image(loss_path)})
 
     # 2 Perplexity Curve
     plt.figure(figsize=(10, 6))
@@ -60,7 +69,7 @@ def generate_and_save_plots(
     perplexity_path = os.path.join(evaluation_dir, "perplexity_vs_batch.png")
     plt.savefig(perplexity_path, dpi=150)
     plt.close()
-    wandb.log({"perplexity_curve": wandb.Image(perplexity_path)})
+    _log_wandb({"perplexity_curve": wandb.Image(perplexity_path)})
 
     # 3. Hardware: VRAM Usage
     plt.figure(figsize=(10, 6))
@@ -74,7 +83,7 @@ def generate_and_save_plots(
     vram_batch_path = os.path.join(hardware_dir, "vram_vs_batch.png")
     plt.savefig(vram_batch_path, dpi=150)
     plt.close()
-    wandb.log({"vram_usage": wandb.Image(vram_batch_path)})
+    _log_wandb({"vram_usage": wandb.Image(vram_batch_path)})
 
     # 4. Hardware: VRAM vs Loss (Scatter)
     plt.figure(figsize=(10, 6))
@@ -87,7 +96,7 @@ def generate_and_save_plots(
     vram_loss_path = os.path.join(hardware_dir, "vram_vs_loss.png")
     plt.savefig(vram_loss_path, dpi=150)
     plt.close()
-    wandb.log({"vram_vs_loss": wandb.Image(vram_loss_path)})
+    _log_wandb({"vram_vs_loss": wandb.Image(vram_loss_path)})
 
     # 5. Overview: Metrics Summary (Bar Chart)
     categories = ["avg_loss", "min_loss", "max_loss", "avg_perplexity", "avg_vram", "peak_vram"]
@@ -112,7 +121,7 @@ def generate_and_save_plots(
     summary_path = os.path.join(overview_dir, "metrics_summary.png")
     plt.savefig(summary_path, dpi=150)
     plt.close()
-    wandb.log({"metrics_summary": wandb.Image(summary_path)})
+    _log_wandb({"metrics_summary": wandb.Image(summary_path)})
 
     logger.info(f"Plots generated and saved to {path}")
 

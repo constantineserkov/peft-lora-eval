@@ -77,7 +77,5 @@ def evaluator(
         wandb.log(final_metrics)
     with contextlib.suppress(pynvml.NVMLError):
         pynvml.nvmlShutdown()
-    with contextlib.suppress(Exception):
-        wandb.finish()
 
     return None
