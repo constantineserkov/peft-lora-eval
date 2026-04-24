@@ -183,7 +183,7 @@ def train_model(
                         wandb.log({"lr": current_lr})
                         logger.info(f"Step: {step}\n"
                                     f"Avg. train loss: {metrics["train_loss"]}\n"
-                                    f"Avg. valid. loss: {metrics["val_loss"]}\n"
+                                    f"Avg. valid. loss: {metrics["eval_loss"]}\n"
                                     f"Perplexity: {metrics["perplexity"]}\n"
                                     f"LR: {current_lr:.1e}"
                                     f"VRAM usage: {metrics["vram_usage"]} GiB")
