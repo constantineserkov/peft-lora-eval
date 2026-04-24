@@ -1999,6 +1999,18 @@ wheels = [
 ]
 
 [[package]]
+name = "pandas-stubs"
+version = "3.0.0.260204"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/27/1d/297ff2c7ea50a768a2247621d6451abb2a07c0e9be7ca6d36ebe371658e5/pandas_stubs-3.0.0.260204.tar.gz", hash = "sha256:bf9294b76352effcffa9cb85edf0bed1339a7ec0c30b8e1ac3d66b4228f1fbc3", size = 109383, upload-time = "2026-02-04T15:17:17.247Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7c/2f/f91e4eee21585ff548e83358332d5632ee49f6b2dcd96cb5dca4e0468951/pandas_stubs-3.0.0.260204-py3-none-any.whl", hash = "sha256:5ab9e4d55a6e2752e9720828564af40d48c4f709e6a2c69b743014a6fcb6c241", size = 168540, upload-time = "2026-02-04T15:17:15.615Z" },
+]
+
+[[package]]
 name = "pandocfilters"
 version = "1.5.1"
 source = { registry = "https://pypi.org/simple" }
@@ -2061,6 +2073,7 @@ dependencies = [
     { name = "matplotlib" },
     { name = "notebook" },
     { name = "nvidia-ml-py" },
+    { name = "pandas-stubs" },
     { name = "peft" },
     { name = "pytest" },
     { name = "pyyaml" },
@@ -2083,6 +2096,7 @@ requires-dist = [
     { name = "matplotlib", specifier = ">=3.10.6" },
     { name = "notebook", specifier = ">=7.5.0" },
     { name = "nvidia-ml-py", specifier = ">=13.580.82" },
+    { name = "pandas-stubs", specifier = "==3.0.0.260204" },
     { name = "peft", specifier = ">=0.17.1" },
     { name = "pytest", specifier = ">=8.4.2" },
     { name = "pyyaml", specifier = ">=6.0.2" },
@@ -3202,12 +3216,12 @@ dependencies = [
     { name = "typing-extensions" },
 ]
 wheels = [
-    { url = "https://download.pytorch.org/whl/cu126/torch-2.8.0%2Bcu126-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:ce6e6a1f4803ad62d1fe51cec3fe5ca14bcd8bc7cace7b09d5590f8147fa16ad" },
-    { url = "https://download.pytorch.org/whl/cu126/torch-2.8.0%2Bcu126-cp312-cp312-win_amd64.whl", hash = "sha256:f6c79eac0018f9d131479ee1b7a68edb030619a316bfbc69275043aa4f338e4c" },
-    { url = "https://download.pytorch.org/whl/cu126/torch-2.8.0%2Bcu126-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:d08144011e410b9d15914e7256e1b1708a90484cb2c03712199e0291856d4177" },
-    { url = "https://download.pytorch.org/whl/cu126/torch-2.8.0%2Bcu126-cp313-cp313-win_amd64.whl", hash = "sha256:3aa7da5cc6b7df0e8c0754dea339bd31cd21b5620e84f53b2ac4be47e8bb2179" },
-    { url = "https://download.pytorch.org/whl/cu126/torch-2.8.0%2Bcu126-cp313-cp313t-manylinux_2_28_x86_64.whl", hash = "sha256:637bdbd510920abce9370c4ff8b44bce6ace48dc1672e1ed42ff14e1e67497b9" },
-    { url = "https://download.pytorch.org/whl/cu126/torch-2.8.0%2Bcu126-cp313-cp313t-win_amd64.whl", hash = "sha256:6b6a2baf405f6c7069f38658bd6f70dced6a06ee044102d05e0bd7310611fce3" },
+    { url = "https://download-r2.pytorch.org/whl/cu126/torch-2.8.0%2Bcu126-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:ce6e6a1f4803ad62d1fe51cec3fe5ca14bcd8bc7cace7b09d5590f8147fa16ad", upload-time = "2025-10-01T23:40:02Z" },
+    { url = "https://download-r2.pytorch.org/whl/cu126/torch-2.8.0%2Bcu126-cp312-cp312-win_amd64.whl", hash = "sha256:f6c79eac0018f9d131479ee1b7a68edb030619a316bfbc69275043aa4f338e4c", upload-time = "2025-10-01T23:40:33Z" },
+    { url = "https://download-r2.pytorch.org/whl/cu126/torch-2.8.0%2Bcu126-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:d08144011e410b9d15914e7256e1b1708a90484cb2c03712199e0291856d4177", upload-time = "2025-10-01T23:42:07Z" },
+    { url = "https://download-r2.pytorch.org/whl/cu126/torch-2.8.0%2Bcu126-cp313-cp313-win_amd64.whl", hash = "sha256:3aa7da5cc6b7df0e8c0754dea339bd31cd21b5620e84f53b2ac4be47e8bb2179", upload-time = "2025-10-01T23:42:30Z" },
+    { url = "https://download-r2.pytorch.org/whl/cu126/torch-2.8.0%2Bcu126-cp313-cp313t-manylinux_2_28_x86_64.whl", hash = "sha256:637bdbd510920abce9370c4ff8b44bce6ace48dc1672e1ed42ff14e1e67497b9", upload-time = "2025-10-01T23:43:47Z" },
+    { url = "https://download-r2.pytorch.org/whl/cu126/torch-2.8.0%2Bcu126-cp313-cp313t-win_amd64.whl", hash = "sha256:6b6a2baf405f6c7069f38658bd6f70dced6a06ee044102d05e0bd7310611fce3", upload-time = "2025-10-01T23:44:09Z" },
 ]
 
 [[package]]

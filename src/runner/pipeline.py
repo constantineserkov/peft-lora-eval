@@ -7,7 +7,7 @@ from src.runner.train_runner import run_train
 from src.runner.eval_runner import run_eval
 from src.runner.bench_runner import run_bench
 from src.runner.inf_runner import run_inf
-
+from src.compare import create_comparison_tables
 
 def run_pipeline():
     run_dir, metadata, logger = init_run()
@@ -86,3 +86,5 @@ def run_pipeline():
         save_metadata(metadata)
 
     # Comparison runner
+    create_comparison_tables(run_config, metadata, logger)
+    logger.info("Pipeline ran successfully. Exiting.")
