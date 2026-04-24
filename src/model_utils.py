@@ -202,7 +202,15 @@ def configure_peft_model_for_eval(
     if method not in {"base", "instruct"}:
         try:
             adapter_checkpoint_path = project_path(config, "runs", metadata["run_id"], method, "checkpoints/best")
+            adapter_config_path = os.path.join(adapter_checkpoint_path, "adapter_config.json")
             logger.info(f"Loading adapter weights from {adapter_checkpoint_path}")
+
+            if not os.path.exists(adapter_config_path):
+                raise FileNotFoundError(
+                    f"PEFT adapter checkpoint is missing at '{adapter_checkpoint_path}'. "
+                    "Expected adapter_config.json. This usually means training finished without saving a best "
+                    "adapter checkpoint."
+                )
 
             model = PeftModelForCausalLM.from_pretrained(model, adapter_checkpoint_path)
 

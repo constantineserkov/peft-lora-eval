@@ -106,7 +106,7 @@ def save_checkpoint(
     metadata["latest_checkpoint_method"] = active_method
     save_metadata(metadata)
 
-    logger.info(f"Checkpoint saved.\nEpoch: {epoch}\nStep: {step}")
+    logger.info(f"Checkpoint saved. Epoch: {epoch}. Step: {step}.")
 
     # Optional: clean   old checkpoints
     clean_checkpoints(dir_path=checkpoint_dir, ignore={checkpoint_name})

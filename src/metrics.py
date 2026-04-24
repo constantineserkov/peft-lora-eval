@@ -74,7 +74,7 @@ def compute_training_metrics(
     return {
         "train_loss": avg_train_loss,
         "eval_loss": avg_eval_loss,
-        # "perplexity": np.exp(avg_eval_loss), check if this is correct
+        "perplexity": float(np.exp(avg_eval_loss)),
         "vram_usage": log_vram_usage(device_index)
     }
 

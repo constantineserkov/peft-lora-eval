@@ -87,6 +87,7 @@ def train_model(
             "vram_usage": [],
         }
         running_loss = 0
+        running_steps = 0
 
         # Wrap the train loader with tqdm
         pbar = tqdm(train_loader, desc="Training", unit="batch")  # if is off on Jupyter, set position=0
@@ -115,6 +116,7 @@ def train_model(
             scaler.scale(loss_scaled).backward()
 
             running_loss += loss.item()
+            running_steps += 1
 
             # Gradient accumulation
             if (step + 1) % g == 0:
@@ -128,10 +130,11 @@ def train_model(
                 optimizer.zero_grad()
 
             ##### Log metrics & Validate #####
-            if (step + 1) % log_every == 0:
-                avg_train_loss = running_loss / log_every
+            if (step + 1) % log_every == 0 or (step + 1) == len(train_loader):
+                avg_train_loss = running_loss / max(running_steps, 1)
                 per_epoch_metrics["train_losses"].append(avg_train_loss)
                 running_loss = 0
+                running_steps = 0
 
                 ### Validation ###
                 if val_loader:
