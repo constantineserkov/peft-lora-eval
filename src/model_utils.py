@@ -2,7 +2,13 @@ import logging
 import os
 from typing import Dict, Optional, Tuple
 import torch
-from transformers import AutoModelForCausalLM, BitsAndBytesConfig, PreTrainedModel
+from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    BitsAndBytesConfig,
+    PreTrainedModel,
+    PreTrainedTokenizerBase,
+)
 
 from peft import (
     LoraConfig,
@@ -50,6 +56,37 @@ def _get_lora_config(
     )
 
 
+def resolve_model_name(config: Dict) -> str:
+    """
+    Chooses which model name to use according to the config and CLI input --use_small_model
+    """
+    if config["runtime"].get("use_small_model", False):
+        return "gpt2"
+
+    return config["model"]["model_name_or_path"]
+
+
+def load_tokenizer(
+    config: Dict,
+    padding_side: str = "left",
+) -> PreTrainedTokenizerBase:
+    tokenizer = AutoTokenizer.from_pretrained(
+        resolve_model_name(config),
+        padding_side=padding_side,
+    )
+    
+    if tokenizer.pad_token is None:
+        if tokenizer.eos_token is None:
+            raise ValueError(
+                f"Tokenizer {tokenizer.__class__.__name__} does not define an eos_token. "
+                "This project uses eos_token as pad_token."
+            )
+
+        tokenizer.pad_token = tokenizer.eos_token
+
+    return tokenizer
+
+
 def init_base_model(
         method, config: Dict,
         logger: logging.Logger,
@@ -61,7 +98,7 @@ def init_base_model(
     attn = select_attn_implementation()
 
     # 3. Load base model
-    model_name = config['model']['model_name_or_path']
+    model_name = resolve_model_name(config)
     logger.debug(f"MODEL NAME: {model_name}")
 
     model = AutoModelForCausalLM.from_pretrained(
@@ -141,7 +178,9 @@ def configure_peft_model_for_training(
     )
 
     # 7. Move to device
-    return model.to(device), checkpoint
+    model = model.to(device)
+    model.train()
+    return model, checkpoint
 
 
 def configure_peft_model_for_eval(
@@ -169,4 +208,6 @@ def configure_peft_model_for_eval(
             logger.error(f"For method '{method}' no checkpoints were found.")
             raise e
 
-    return model.to(device)
+    model = model.to(device)
+    model.eval()
+    return model

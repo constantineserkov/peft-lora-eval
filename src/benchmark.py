@@ -1,74 +1,85 @@
-import os
-from typing import Dict, Tuple
-import torch
-from transformers import AutoTokenizer
+from typing import Dict, Any
 import lm_eval
 from lm_eval.models.huggingface import HFLM
-from src.model_utils import configure_peft_model_for_eval
-from src.logger import get_logger
 from src.results import save_results
 
-logger = get_logger()
 
+DEFAULT_BENCHMARK_METRICS = {
+    "hellaswag": "acc_norm,none",
+    "arc_challenge": "acc_norm,none",
+    "mmlu": "acc,none",
+    "truthfulqa_mc2": "acc,none",
+    "winogrande": "acc,none",
+}
 
-# ------------------------------------------------------------------
-# CONFIG — change only these
-# ------------------------------------------------------------------
-TASKS = [
-    "arc_challenge",      # 25-shot
-    "hellaswag",          # 10-shot
-    "mmlu",               # 5-shot (57 subjects)
-    "truthfulqa_mc2",     # 0-shot
-    "winogrande",         # 5-shot
-    "gsm8k",              # 8-shot
-]
+def run_lm_eval(model, tokenizer, config_dict: Dict) -> Dict[str, Any]:
+    batch_size = config_dict["benchmark"]["batch_size"]
 
-MODEL_PATHS = [
-    "outputs/base-7B",
-    "outputs/lora-r64",
-    "outputs/qlora-4bit",
-    "outputs/dora-r64",
-    # add more...
-]
-# ------------------------------------------------------------------
-
-def run_lm_eval(model, tokenizer, config_dict: Dict):
-    batch_size = config_dict["dataloader"]["batch_size"]
     lm = HFLM(
         pretrained=model,
         tokenizer=tokenizer,
         batch_size=batch_size
     )
 
-    results = lm_eval.evaluator.simple_evaluate(
+    return lm_eval.evaluator.simple_evaluate(
         model=lm,
         tasks=config_dict["benchmark"]["tasks"],
         batch_size=batch_size,
-        no_cache=True
+        no_cache=True,
     )
-    return results["results"]
 
 
-def extract_key_metrics(raw_results) -> Dict[str, float]:
-    return {
-        "MMLU": round(raw_results["mmlu"]["acc,none"] * 100, 2),
-        "HellaSwag": round(raw_results["hellaswag"]["acc_norm,none"] * 100, 2),
-        "ARC-Challenge": round(raw_results["arc_challenge"]["acc_norm,none"] * 100, 2),
-        "TruthfulQA": round(raw_results["truthfulqa_mc2"]["acc,none"] * 100, 2),
-        "Winogrande": round(raw_results["winogrande"]["acc,none"] * 100, 2),
-        "GSM8K": round(raw_results["gsm8k"]["acc,none"] * 100, 2),
-    }
+def extract_key_metrics(
+    raw_results: Dict[str, Dict[str, Any]],
+    metric_mapping: Dict[str, str],
+    logger,
+) -> Dict[str, float]:
+    summary = {}
 
+    for task_name, metric_key in metric_mapping.items():
+        task_result = raw_results.get(task_name)
 
-def run_benchmarks(model, tokenizer, metadata, config, device):
-    # metadata["metric_type"] = "benchmark"
-    #
-    # all_results = {}
-    # os.makedirs("results/benchmarks", exist_ok=True)
+        if task_result is None:
+            logger.warning(
+                "Benchmark task '%s' is missing from lm-eval results. Available tasks: %s",
+                task_name,
+                sorted(raw_results.keys()),
+            )
+            continue
+
+        if metric_key not in task_result:
+            logger.warning(
+                "Benchmark metric '%s' is missing for task '%s'. Available keys: %s",
+                metric_key,
+                task_name,
+                sorted(task_result.keys()),
+            )
+            continue
+
+        summary[task_name] = round(float(task_result[metric_key]) * 100, 2)
+
+    return summary
+
+def run_benchmarks(model, tokenizer, config, device, logger, metadata):
     metadata["metric_type"] = "benchmark"
 
-    raw_results = run_lm_eval(model, tokenizer, config)
-    metrics = extract_key_metrics(raw_results)
+    lm_eval_output = run_lm_eval(model, tokenizer, config)
+    raw_results = lm_eval_output["results"]
+
+    metric_mapping = config["benchmark"].get(
+        "metrics",
+        DEFAULT_BENCHMARK_METRICS,
+    )
+
+    summary = extract_key_metrics(raw_results, metric_mapping, logger)
+
+    metrics = {
+        "summary": summary,
+        "raw": raw_results,
+        "configs": lm_eval_output.get("configs"),
+        "versions": lm_eval_output.get("versions"),
+        "n_shot": lm_eval_output.get("n-shot"),
+    }
 
     save_results(metrics, metadata, config, logger)
     return metrics

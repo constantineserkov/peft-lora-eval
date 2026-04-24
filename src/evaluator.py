@@ -33,7 +33,7 @@ def evaluator(
         "wc_time": None,
     }
 
-    model.eval()
+    # model.eval() is set in configure_model_for_eval
     start_time = time.time()
     torch.cuda.reset_peak_memory_stats()
 

@@ -68,7 +68,7 @@ def train_model(
         start_step = 0
         best_loss: Optional[float] = float("inf")
 
-    model.train()
+    # model.train() is set in configure_model_for_training
 
     # before training: collect garbage and release unused cached memory back to the GPU
     gc.collect()

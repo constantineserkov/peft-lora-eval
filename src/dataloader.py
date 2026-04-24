@@ -1,9 +1,10 @@
 import torch
 from torch.utils.data import DataLoader
 from datasets import load_dataset, Dataset
-from transformers import PreTrainedTokenizerBase, AutoTokenizer
-from typing import List, Dict, Optional
+from transformers import PreTrainedTokenizerBase
+from typing import List, Dict, Optional, Any
 from src.logger import get_logger
+from src.model_utils import load_tokenizer
 
 logger = get_logger()
 
@@ -28,7 +29,7 @@ def format_prompt(batch) -> Dict:
     return {'prompt': prompts}
 
 
-def tokenize(batch, tokenizer: PreTrainedTokenizerBase) -> Dict:
+def tokenize_supervised_causal_lm_batch(batch, tokenizer: PreTrainedTokenizerBase) -> Dict:
     if tokenizer.eos_token is None:
         raise ValueError(
             f"Tokenizer {tokenizer.__class__.__name__} does not define an eos_token. "
@@ -102,17 +103,9 @@ def split_and_sort_dataset(
 
 
 def get_tokenized_dataset(dataset, config):
-    model_name = config["model"]["model_name_or_path"]
-    if config["runtime"]["use_small_model"]:
-        model_name = "gpt2"
-        logger.debug(f"Using small model: '{model_name}'")
-
-    # tokenize dataset
-    tokenizer = AutoTokenizer.from_pretrained(model_name, padding_side="left")
-
-    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer = load_tokenizer(config, padding_side="left")
     tokenized_dataset = dataset.map(
-        tokenize,
+        tokenize_supervised_causal_lm_batch,
         batched=True,
         batch_size=100,
         fn_kwargs={"tokenizer": tokenizer})
@@ -129,6 +122,7 @@ def get_dataloader(
 ) -> DataLoader:
     collator = DataCollatorForCustomPadding(tokenizer=tokenizer, pad_to_multiple_of=pad_to_multiple_of)
     generator = torch.Generator().manual_seed(seed)
+
     return DataLoader(
         dataset=tokenized_dataset,
         batch_size=batch_size,
@@ -139,7 +133,12 @@ def get_dataloader(
     )
 
 
-def unpack_loaders(config):
+def unpack_loaders(config: Dict[str, Any]) -> tuple[
+    DataLoader,
+    DataLoader,
+    DataLoader,
+    PreTrainedTokenizerBase,
+]:
     # load dataset
     dataset = load_alpaca_data(
         dataset_name=config["dataset"]["name"],
@@ -166,7 +165,7 @@ def unpack_loaders(config):
                      f"Tokenized val dataset sample: {val_ds[1]}\n\n"
                      f"Tokenized test dataset sample: {test_ds[2]}")
     except IndexError as e:
-        logger.error(f"Split sizes -> train: {len(train_ds)}, val: {len(val_ds)}, test: {len(test_ds)}")
+        logger.error(f"Split sizes -> train: {len(train_ds)}, val: {len(val_ds)}, test: {len(test_ds)}. \n\n {e}")
 
     # Load dataloaders
     train_loader = get_dataloader(
@@ -191,6 +190,7 @@ def unpack_loaders(config):
     return train_loader, val_loader, test_loader, tokenizer
 
 
+# Custom data collator
 class DataCollatorForCustomPadding:
     def __init__(self, tokenizer, pad_to_multiple_of=None):
         self.tokenizer = tokenizer

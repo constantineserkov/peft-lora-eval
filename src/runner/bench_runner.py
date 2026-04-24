@@ -1,15 +1,12 @@
-from transformers import AutoTokenizer
 from src.benchmark import run_benchmarks
-from src.model_utils import configure_peft_model_for_eval
+from src.model_utils import configure_peft_model_for_eval, load_tokenizer
 
 def run_bench(model, method, config, metadata, logger):
     device = metadata["device"]
 
     model = configure_peft_model_for_eval(model, metadata, config, device, logger)
-    tokenizer = AutoTokenizer.from_pretrained(config["model"]["model_name_or_path"])
-    tokenizer.padding_side = "left"
-    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer = load_tokenizer(config, padding_side="left")
 
-    run_benchmarks(model, tokenizer, metadata, config, device)
+    run_benchmarks(model, tokenizer, config, device, logger, metadata)
 
     return model
