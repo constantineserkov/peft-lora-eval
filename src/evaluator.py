@@ -7,7 +7,7 @@ import pynvml
 import wandb
 from src.results import save_results, generate_and_save_plots
 from src.trainer import log_vram_usage
-from src.metrics import compute_eval_metrics
+from src.metrics import compute_eval_metrics, measure_runtime_and_peak_vram
 import torch
 from torch.utils.data import DataLoader
 from torch.amp import autocast
@@ -34,34 +34,32 @@ def evaluator(
     }
 
     # model.eval() is set in configure_model_for_eval
-    start_time = time.time()
-    torch.cuda.reset_peak_memory_stats()
+    wall_clock_start = time.time()
+    with measure_runtime_and_peak_vram(device) as runtime_metrics:
+        with torch.no_grad():
+            pbar = tqdm(dataloader, desc="Evaluation")
+            for batch_idx, batch in enumerate(pbar):
+                batch: Dict[str, torch.Tensor]
+                input_ids = batch["input_ids"].to(device)
+                attention_mask = batch["attention_mask"].to(device)
+                labels = batch["labels"].to(device)
 
-    with torch.no_grad():
-        pbar = tqdm(dataloader, desc="Evaluation")
-        for batch_idx, batch in enumerate(pbar):
-            batch: Dict[str, torch.Tensor]
-            input_ids = batch["input_ids"].to(device)
-            attention_mask = batch["attention_mask"].to(device)
-            labels = batch["labels"].to(device)
+                with autocast(device, dtype=torch.bfloat16):
+                    outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+                    loss = outputs.loss.item()
 
-            with autocast(device, dtype=torch.bfloat16):
-                outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
-                loss = outputs.loss.item()
+                    # update metrics
+                    temp_metrics["batches"].append(batch_idx)
+                    temp_metrics["losses"].append(loss)
+                    temp_metrics["vram"].append(log_vram_usage())
 
-                # update metrics
-                temp_metrics["batches"].append(batch_idx)
-                temp_metrics["losses"].append(loss)
-                temp_metrics["vram"].append(log_vram_usage())
+    wall_clock_end = time.time()
 
-    end_time = time.time()
-
-    temp_metrics["test_elapsed"] = end_time - start_time
-    temp_metrics["wc_time"] = end_time - metadata.get("wc_time", start_time)  # fallback if wc_time is missing
+    temp_metrics["test_elapsed"] = runtime_metrics["elapsed_seconds"]
+    temp_metrics["wc_time"] = wall_clock_end - metadata.get("wc_time", wall_clock_start)  # fallback if wc_time is missing
     final_metrics = compute_eval_metrics(temp_metrics)
 
-    final_metrics["hardware"]["peak_vram_torch"] = torch.cuda.max_memory_allocated() / 1e9
-    torch.cuda.reset_peak_memory_stats()
+    final_metrics["hardware"]["peak_vram_torch_gb"] = runtime_metrics["peak_vram_torch_gb"]
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 
     logger.debug("Saving results...")
