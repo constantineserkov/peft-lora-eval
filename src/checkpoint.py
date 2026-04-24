@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Any, cast
 import os
 import torch.nn
 from src.runner.common import save_metadata
@@ -7,28 +7,45 @@ from peft import get_peft_model_state_dict, PeftModel
 
 
 def load_checkpoint(
-        config, metadata: Dict,
-        logger: logging.Logger,
-) -> Dict | None:
+    config: dict[str, Any],
+    metadata: dict[str, Any],
+    logger: logging.Logger,
+) -> dict[str, Any] | None:
     """
-    Load the latest checkpoint
-    Returns
+    Load the latest checkpoint for the active method.
+
+    Returns:
+        Checkpoint dictionary if found, otherwise None.
     """
     active_method = config["active_method"]
     latest_checkpoint = metadata.get("latest_checkpoint")
     latest_checkpoint_method = metadata.get("latest_checkpoint_method")
+    base_path = cast(str, config["runtime"]["base_path"])  # cast is not the best solution here
+
+    checkpoint_dir = os.path.join(
+        base_path,
+        "runs",
+        metadata["run_id"],
+        active_method,
+        "checkpoints",
+        "resume",
+    )
+
+    os.makedirs(checkpoint_dir, exist_ok=True)
 
     if latest_checkpoint_method != active_method:
         logger.info(f"No checkpoint for method '{active_method}'. Starting from scratch.")
         return None
 
-    checkpoint_dir = os.path.join("runs", metadata["run_id"], active_method, "checkpoints/resume")
-    checkpoint_path = os.path.join(checkpoint_dir, latest_checkpoint)
-    os.makedirs(checkpoint_dir, exist_ok=True)
-
-    # Start from scratch if latest checkpoint doesn't exist
-    if not latest_checkpoint or not os.path.exists(checkpoint_path):
+    if not isinstance(latest_checkpoint, str):
         logger.info("No checkpoint found. Starting from scratch.")
+        clean_checkpoints(checkpoint_dir)
+        return None
+
+    checkpoint_path = os.path.join(checkpoint_dir, latest_checkpoint)
+
+    if not os.path.exists(checkpoint_path):
+        logger.info("Checkpoint path does not exist. Starting from scratch.")
         clean_checkpoints(checkpoint_dir)
         return None
 

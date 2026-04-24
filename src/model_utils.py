@@ -74,7 +74,7 @@ def load_tokenizer(
         resolve_model_name(config),
         padding_side=padding_side,
     )
-    
+
     if tokenizer.pad_token is None:
         if tokenizer.eos_token is None:
             raise ValueError(

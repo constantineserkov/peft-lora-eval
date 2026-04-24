@@ -120,9 +120,11 @@ def save_results(
         metadata: Dict | None,
         config: Dict,
         logger,
-        timestamp: str = datetime.now().strftime('%Y%m%d_%H%M%S'),
+        timestamp: str | None = None,
 ) -> None:
     """Save evaluation results to JSON file"""
+    if timestamp is None:
+       timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     results = {
         "metadata": metadata,
         "config": config,
@@ -134,15 +136,15 @@ def save_results(
     model_name = config["model"]["model_name_or_path"]
     safe_model_name = model_name.replace('/', '_')  # replace '/' to avoid unnecessary folder creation
     peft_method_name = config["active_method"]
+    base_path = config["runtime"]["base_path"]
 
     if metadata["metric_type"] == "evaluator":
-        save_dir = os.path.join("results", "metrics")
+        save_dir = os.path.join(base_path, "results", "metrics")
     elif metadata["metric_type"] == "benchmark":
-        save_dir = os.path.join("results", "benchmarks")
+        save_dir = os.path.join(base_path, "results", "benchmarks")
     else:
-        logger.warning(f"Unusual metric_type: {metadata["metric_type"]}. Should be either 'evaluator', or 'benchmark'")
-        save_dir = os.path.join("results", input("Where do you want to save the metrics? Current dir: 'results/'. "
-                                                 "Input(metrics/benchmarks): ").lower())
+        raise ValueError(f"Unusual metric_type: {metadata["metric_type"]}. Should be either 'evaluator', or 'benchmark'")
+
     os.makedirs(save_dir, exist_ok=True)
 
     filename = os.path.join(save_dir, f"{safe_model_name}_{peft_method_name}_{timestamp}.json")
