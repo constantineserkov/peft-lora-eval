@@ -1,5 +1,5 @@
 from typing import Dict, Any
-import lm_eval
+from lm_eval import evaluator
 from lm_eval.models.huggingface import HFLM
 from src.results import save_results
 from src.metrics import measure_runtime_and_peak_vram
@@ -11,6 +11,7 @@ DEFAULT_BENCHMARK_METRICS = {
     "mmlu": "acc,none",
     "truthfulqa_mc2": "acc,none",
     "winogrande": "acc,none",
+    "gsm8k": "exact_match,strict-match"
 }
 
 def run_lm_eval(model, tokenizer, config_dict: Dict, device) -> tuple[Dict[str, Any], Dict[str, Any]]:
@@ -26,7 +27,7 @@ def run_lm_eval(model, tokenizer, config_dict: Dict, device) -> tuple[Dict[str, 
     with measure_runtime_and_peak_vram(device) as benchmark_stats:
         benchmark_config = config_dict["benchmark"]
 
-        results = lm_eval.evaluator.simple_evaluate(
+        results = evaluator.simple_evaluate(
             model=lm,
             tasks=benchmark_config["tasks"],
             num_fewshot=benchmark_config.get("num_fewshot"),
