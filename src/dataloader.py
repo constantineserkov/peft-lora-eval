@@ -165,7 +165,7 @@ def unpack_loaders(config: Dict[str, Any]) -> tuple[
                      f"Tokenized val dataset sample: {val_ds[1]}\n\n"
                      f"Tokenized test dataset sample: {test_ds[2]}")
     except IndexError as e:
-        logger.error(f"Small batch; internal logic fallback. Split sizes -> train: {len(train_ds)}, val: {len(val_ds)}, test: {len(test_ds)}.  {e}")
+        logger.warning(f"Small batch; internal logic fallback. Split sizes -> train: {len(train_ds)}, val: {len(val_ds)}, test: {len(test_ds)}.  {e}")
 
     # Load dataloaders
     train_loader = get_dataloader(

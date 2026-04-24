@@ -3,6 +3,10 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List
 import pandas as pd
 
+
+DISPLAY_EXCLUDED_COLUMNS = {"source_path"}
+
+
 def get_results_root(config: Dict[str, Any]) -> Path:
     return Path(config["runtime"]["base_path"]) / "results"
 
@@ -157,6 +161,27 @@ def save_comparison_tables(
     return paths
 
 
+def format_comparison_table(df: pd.DataFrame) -> str:
+    if df.empty:
+        return "(no rows)"
+
+    display_df = df.drop(
+        columns=[column for column in DISPLAY_EXCLUDED_COLUMNS if column in df.columns],
+        errors="ignore",
+    )
+
+    return display_df.to_string(index=False)
+
+
+def print_comparison_tables(
+    eval_df: pd.DataFrame,
+    benchmark_df: pd.DataFrame,
+    logger,
+) -> None:
+    logger.info("Evaluation comparison table:\n%s", format_comparison_table(eval_df))
+    logger.info("Benchmark comparison table:\n%s", format_comparison_table(benchmark_df))
+
+
 def create_comparison_tables(
     config: Dict[str, Any],
     metadata: Dict[str, Any],
@@ -169,6 +194,7 @@ def create_comparison_tables(
     benchmark_df = build_benchmark_table(benchmark_results)
 
     paths = save_comparison_tables(eval_df, benchmark_df, config, metadata)
+    print_comparison_tables(eval_df, benchmark_df, logger)
 
     logger.info(
         "Comparison tables created. Evaluation rows: %s | Benchmark rows: %s",
