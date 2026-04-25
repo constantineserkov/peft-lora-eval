@@ -9,6 +9,11 @@ from peft import get_peft_model_state_dict, PeftModel
 from src.utils import project_path
 
 
+def _get_method_checkpoint_metadata(metadata: dict[str, Any], method: str) -> dict[str, Any]:
+    checkpoints = metadata.setdefault("checkpoints", {})
+    return checkpoints.setdefault(method, {})
+
+
 def load_checkpoint(
     config: dict[str, Any],
     metadata: dict[str, Any],
@@ -21,8 +26,19 @@ def load_checkpoint(
         Checkpoint dictionary if found, otherwise None.
     """
     active_method = config["active_method"]
-    latest_checkpoint = metadata.get("latest_checkpoint")
-    latest_checkpoint_method = metadata.get("latest_checkpoint_method")
+    method_checkpoint = metadata.get("checkpoints", {}).get(active_method, {})
+    latest_checkpoint = method_checkpoint.get("latest_resume")
+
+    if not isinstance(latest_checkpoint, str):
+        legacy_checkpoint = metadata.get("latest_checkpoint")
+        legacy_method = metadata.get("latest_checkpoint_method")
+
+        if legacy_method == active_method and isinstance(legacy_checkpoint, str):
+            latest_checkpoint = legacy_checkpoint
+            logger.info(
+                "Using legacy checkpoint metadata for method '%s'. It will be migrated on the next save.",
+                active_method,
+            )
 
     checkpoint_dir = project_path(
         config,
@@ -35,13 +51,8 @@ def load_checkpoint(
 
     os.makedirs(checkpoint_dir, exist_ok=True)
 
-    if latest_checkpoint_method != active_method:
-        logger.info(f"No checkpoint for method '{active_method}'. Starting from scratch.")
-        return None
-
     if not isinstance(latest_checkpoint, str):
-        logger.info("No checkpoint found. Starting from scratch.")
-        clean_checkpoints(checkpoint_dir)
+        logger.info(f"No checkpoint for method '{active_method}'. Starting from scratch.")
         return None
 
     checkpoint_path = os.path.join(checkpoint_dir, latest_checkpoint)
@@ -79,6 +90,9 @@ def save_best(
     checkpoint_dir = project_path(config, "runs", metadata["run_id"], active_method, "checkpoints/best")
 
     model.save_pretrained(checkpoint_dir)  # saves adapter weights + peft config
+    method_checkpoint = _get_method_checkpoint_metadata(metadata, active_method)
+    method_checkpoint["best_adapter"] = checkpoint_dir
+    save_metadata(metadata)
     logger.info(f"New best model saved at (epoch {epoch} | step {step}) with eval_loss: \033[1;91m{best_loss:.4f}\033[0m")
 
 
@@ -115,6 +129,9 @@ def save_checkpoint(
     }
     torch.save(checkpoint, checkpoint_path)
 
+    method_checkpoint = _get_method_checkpoint_metadata(metadata, active_method)
+    method_checkpoint["latest_resume"] = checkpoint_name
+    method_checkpoint["latest_resume_path"] = checkpoint_path
     metadata["latest_checkpoint"] = checkpoint_name
     metadata["latest_checkpoint_method"] = active_method
     save_metadata(metadata)

@@ -213,7 +213,10 @@ def configure_peft_model_for_eval(
 
     if method not in {"base", "instruct"}:
         try:
-            adapter_checkpoint_path = project_path(config, "runs", metadata["run_id"], method, "checkpoints/best")
+            method_checkpoint = metadata.get("checkpoints", {}).get(method, {})
+            adapter_checkpoint_path = method_checkpoint.get("best_adapter")
+            if not isinstance(adapter_checkpoint_path, str):
+                adapter_checkpoint_path = project_path(config, "runs", metadata["run_id"], method, "checkpoints/best")
             adapter_config_path = os.path.join(adapter_checkpoint_path, "adapter_config.json")
             logger.info(f"Loading adapter weights from {adapter_checkpoint_path}")
 

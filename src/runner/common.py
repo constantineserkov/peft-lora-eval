@@ -43,7 +43,8 @@ def init_run():
             "method": None,  # lora/qlora/dora/qdora/base/instruct
             "stage": None,  # training/eval/bench/inf
             "completed": [],
-            "latest_checkpoint": None,
+            "checkpoints": {},
+            "latest_checkpoint": None,  # legacy; use checkpoints[method]["latest_resume"]
             "last_global_step": 0,
             "note": None,
             "metadata_path": str(metadata_path),
@@ -54,6 +55,7 @@ def init_run():
     logger = get_logger(level=args.log_level.upper())
 
     run_config = load_and_validate_run_config(args, logger)
+    metadata.setdefault("checkpoints", {})
 
     if not dry_run:
         device = resolve_device()
