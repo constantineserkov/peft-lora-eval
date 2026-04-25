@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, call, patch
 
 import src.runner.pipeline as pipeline_module
+from src.runner.common import resolve_stages
 
 
 def test_run_pipeline_reuses_cached_model_for_same_method(tmp_path):
@@ -30,7 +31,7 @@ def test_run_pipeline_reuses_cached_model_for_same_method(tmp_path):
         patch.object(
             pipeline_module,
             "resolve_stages",
-            return_value=[("base", "eval"), ("base", "bench")],
+            return_value=([("base", "eval"), ("base", "bench")], []),
         ),
         patch.object(pipeline_module, "load_method_config", return_value=config) as load_method_config,
         patch.object(pipeline_module, "init_base_model", return_value=first_base_model) as init_base_model,
@@ -88,7 +89,7 @@ def test_run_pipeline_bypasses_cache_for_merged_eval_stages(tmp_path):
         patch.object(
             pipeline_module,
             "resolve_stages",
-            return_value=[("lora", "eval"), ("lora", "bench")],
+            return_value=([("lora", "eval"), ("lora", "bench")], []),
         ),
         patch.object(pipeline_module, "load_method_config", return_value=config) as load_method_config,
         patch.object(
@@ -117,3 +118,18 @@ def test_run_pipeline_bypasses_cache_for_merged_eval_stages(tmp_path):
     cleanup_model_for_cache.assert_not_called()
     assert metadata["completed"] == ["lora_eval", "lora_bench"]
     assert save_metadata.call_count == 2
+
+
+def test_resolve_stages_returns_skipped_completed_tags():
+    metadata = {
+        "completed": ["dora_train", "dora_eval"],
+        "run_config": {
+            "methods": ["dora", "qdora"],
+            "stages": ["train", "eval"],
+        },
+    }
+
+    plan, skipped = resolve_stages(metadata)
+
+    assert plan == [("qdora", "train"), ("qdora", "eval")]
+    assert skipped == ["dora_train", "dora_eval"]

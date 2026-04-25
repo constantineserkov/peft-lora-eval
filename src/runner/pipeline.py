@@ -13,7 +13,10 @@ from src.compare import create_comparison_tables
 
 def run_pipeline():
     run_dir, metadata, logger = init_run()
-    plan = resolve_stages(metadata)
+    plan, skipped = resolve_stages(metadata)
+
+    for tag in skipped:
+        logger.info("Skipping completed stage: %s", tag)
 
     run_config = metadata["run_config"]
 

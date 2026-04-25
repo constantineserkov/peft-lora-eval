@@ -66,7 +66,7 @@ def init_run():
     return run_dir, metadata, logger
 
 
-def resolve_stages(metadata) -> List[Tuple[str, str]]:
+def resolve_stages(metadata) -> Tuple[List[Tuple[str, str]], List[str]]:
     completed = set(metadata.get("completed", []))
 
     run_config = metadata["run_config"]
@@ -74,6 +74,7 @@ def resolve_stages(metadata) -> List[Tuple[str, str]]:
     requested_stages = set(run_config["stages"])
 
     plan = []
+    skipped = []
 
     for method in methods:
         # Dependency always: eval/bench/inf require train
@@ -103,8 +104,10 @@ def resolve_stages(metadata) -> List[Tuple[str, str]]:
             tag = f"{method}_{stage}"
             if tag not in completed:
                 plan.append((method, stage))
+            else:
+                skipped.append(tag)
 
-    return plan
+    return plan, skipped
 
 
 def save_metadata(metadata):
