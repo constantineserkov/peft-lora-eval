@@ -4,11 +4,20 @@ from unittest.mock import patch, MagicMock
 import numpy as np
 import torch
 
-from src.inference import compute_metrics, run_inference
+from src.inference import compute_metrics, decode_generated_response, run_inference
 
 
 class ExitException(Exception):
     pass
+
+
+class _BatchEncoding(dict):
+    def __init__(self, input_ids):
+        super().__init__({"input_ids": input_ids})
+        self.input_ids = input_ids
+
+    def to(self, device):
+        return self
 
 
 def test_compute_metrics():
@@ -31,6 +40,19 @@ def test_compute_metrics():
     assert metrics["memory_usage"]["peak_vram"] == 3.0
     assert metrics["memory_usage"]["avg_vram"] == 2.0
     assert "time_and_compute" in metrics
+
+
+def test_decode_generated_response_excludes_prompt_tokens():
+    tokenizer = MagicMock()
+    generated_ids = torch.tensor([[10, 11, 12, 13, 14]])
+    tokenizer.batch_decode.return_value = ["new text"]
+
+    response = decode_generated_response(generated_ids, 3, tokenizer)
+
+    assert response == "new text"
+    tokenizer.batch_decode.assert_called_once()
+    decoded_tokens = tokenizer.batch_decode.call_args.args[0]
+    assert torch.equal(decoded_tokens, torch.tensor([[13, 14]]))
 
 
 @pytest.fixture
@@ -66,13 +88,10 @@ def test_run_inference(mock_dependencies):
     mock_model.generate.return_value = torch.tensor([[1, 2, 3, 4, 5]])
 
     mock_tokenizer = MagicMock()
-    mock_batch_encoding = MagicMock()
-    mock_input_ids = MagicMock()
-    mock_input_ids.to.return_value = mock_input_ids
-    mock_row = MagicMock()
-    mock_row.__len__.return_value = 3
-    mock_input_ids.__getitem__.return_value = mock_row
-    mock_batch_encoding.items.return_value = iter([("input_ids", mock_input_ids)])
+    mock_tokenizer.pad_token_id = 0
+    mock_tokenizer.eos_token_id = 1
+    mock_input_ids = torch.tensor([[1, 2, 3]])
+    mock_batch_encoding = _BatchEncoding(mock_input_ids)
     mock_tokenizer.return_value = mock_batch_encoding
     mock_tokenizer.batch_decode.return_value = ["Response"]
 
@@ -84,8 +103,13 @@ def test_run_inference(mock_dependencies):
                 side_effect=[0.0, 1.0, 1.01, 1.02, 1.1, 1.2, 1.3, 1.4, 1.41],
             ),
         ):
-            run_inference(mock_model, mock_tokenizer)
+            run_inference(mock_model, mock_tokenizer, metadata={})
 
-    mock_model.generate.assert_called_once()
+    mock_model.generate.assert_called_once_with(
+        **mock_batch_encoding,
+        num_beams=4,
+        do_sample=True,
+        pad_token_id=0,
+    )
     mock_tokenizer.batch_decode.assert_called_once()
-    mock_exit.assert_called_once_with(1)
+    mock_exit.assert_called_once_with(0)

@@ -16,6 +16,7 @@ logger = get_logger()
 
 def compute_metrics(metrics):
     logger.debug("Computing metrics...")
+    logger.info("Metrics are not yet supported.")
     return {
         "prompts": [],  # list of prompts indices
         # Latency & Throughput (per-prompt and aggregates)
@@ -48,6 +49,11 @@ def compute_metrics(metrics):
 # get input prompt
 def get_prompt() -> str:
     return input("Enter your prompt: ")
+
+
+def decode_generated_response(generated_ids, input_token_count: int, tokenizer) -> str:
+    generated_tokens = generated_ids[:, input_token_count:]
+    return tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)[0]
 
 
 # run inference
@@ -119,7 +125,15 @@ def run_inference(model: torch.nn.Module, tokenizer, metadata):
 
         # Generation
         gen_start = time.perf_counter()
-        generated_ids = model.generate(**model_inputs, num_beams=4, do_sample=True)
+        pad_token_id = tokenizer.pad_token_id
+        if pad_token_id is None:
+            pad_token_id = tokenizer.eos_token_id
+        generated_ids = model.generate(
+            **model_inputs,
+            num_beams=4,
+            do_sample=True,
+            pad_token_id=pad_token_id,
+        )
         gen_end = time.perf_counter()
 
         # End-to-end latency
@@ -151,7 +165,7 @@ def run_inference(model: torch.nn.Module, tokenizer, metadata):
             prev_power = curr_power
             prev_time = curr_time
 
-        response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+        response = decode_generated_response(generated_ids, input_tokens, tokenizer)
 
         # log prompt, response
         logger.debug(f"#{idx}:")
