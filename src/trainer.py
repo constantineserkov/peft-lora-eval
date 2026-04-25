@@ -193,11 +193,15 @@ def train_model(
                         current_lr = scheduler.get_last_lr()[0]  # get_last_lr() -> List[float]
                         with contextlib.suppress(Exception):
                             wandb.log({"lr": current_lr})
-                        logger.info(f"Avg. train loss: {metrics["train_loss"]} | "
-                                    f"Avg. valid. loss: {metrics["eval_loss"]} | "
-                                    f"Perplexity: {metrics["perplexity"]}\n"
-                                    f"LR: {current_lr:.1e} | "
-                                    f"VRAM usage: {metrics["vram_usage"]} GiB")
+                        logger.info(
+                            f"{"\033[96m"}"  # diamond highlight
+                            f"Avg. train loss: {metrics["train_loss"]} | "
+                            f"Avg. valid. loss: {metrics["eval_loss"]} | "
+                            f"Perplexity: {metrics["perplexity"]}\n"
+                            f"LR: {current_lr:.1e} | "
+                            f"VRAM usage: {metrics["vram_usage"]} GiB"
+                            f"{"\033[0m"}"
+                        )
                 else:
                     logger.info(f"Avg. train loss: {avg_train_loss} | VRAM usage: {log_vram_usage()} GiB")
 
