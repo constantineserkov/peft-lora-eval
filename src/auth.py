@@ -57,8 +57,17 @@ def check_hf_token(logger):
     # 1. Check environment variable
     hf_token = os.environ.get("HUGGINGFACE_HUB_TOKEN")
     if hf_token:
-        hf_login(hf_token)
-        return True
+        try:
+            hf_login(hf_token)
+            return True
+        except Exception as e:
+            logger.error(
+                "HUGGINGFACE_HUB_TOKEN is invalid or expired. "
+                "Create a new Hugging Face access token, update your local .env or Colab Secret, "
+                "then restart the runtime/session. Exception:\n\n%s",
+                e,
+            )
+            return False
 
     # 2. Check Hugging Face token in default folder
     try:
