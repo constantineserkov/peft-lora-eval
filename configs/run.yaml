@@ -28,7 +28,7 @@ training:
 
 logging:
   log_every: 500
-  checkpoint_steps: 500
+  checkpoint_steps: 100
   log_level: "INFO"
   use_wandb: true
   wandb_project: "peft_lora_eval"
