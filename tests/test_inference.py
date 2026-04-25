@@ -1,9 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-
-import numpy as np
 import torch
-
 from src.inference import compute_metrics, decode_generated_response, run_inference
 
 

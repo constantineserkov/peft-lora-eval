@@ -298,3 +298,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Project-generated data/cache artifacts
+data/
+runs/
+results/

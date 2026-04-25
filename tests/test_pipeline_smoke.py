@@ -1,8 +1,6 @@
 from unittest.mock import MagicMock, call, patch
-
 import src.runner.pipeline as pipeline_module
 from src.runner.common import format_run_plan, resolve_stages
-
 
 def test_run_pipeline_reuses_cached_model_for_same_method(tmp_path):
     logger = MagicMock()

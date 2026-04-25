@@ -1,9 +1,7 @@
 import pickle
 from pathlib import Path
 from unittest.mock import MagicMock
-
 import src.checkpoint as checkpoint_module
-
 
 def _checkpoint_context(tmp_path):
     checkpoint_path = (

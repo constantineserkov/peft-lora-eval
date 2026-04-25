@@ -1,9 +1,6 @@
 from pathlib import Path
-
 import pytest
-
 import src.benchmark as benchmark
-
 
 def _benchmark_config(tmp_path):
     return {

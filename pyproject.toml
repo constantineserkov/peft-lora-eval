@@ -1,7 +1,7 @@
 [project]
 name = "peft-lora-eval"
 version = "0.1.0"
-description = "Add your description here"
+description = "Experiment runner for comparing LoRA, QLoRA, DoRA, and QDoRA fine-tuning methods."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

@@ -1,6 +1,5 @@
 # test_data_loader.py
 import pytest
-import torch
 from datasets import Dataset
 from transformers import AutoTokenizer
 
@@ -10,8 +9,6 @@ from src.dataloader import (
     tokenize_supervised_causal_lm_batch,
     add_length,
     get_cleaned_sorted_dataset,
-    get_dataloader,
-    DataCollatorForCustomPadding,
 )
 
 
