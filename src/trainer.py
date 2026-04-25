@@ -183,9 +183,8 @@ def train_model(
                         current_lr = scheduler.get_last_lr()[0]  # get_last_lr() -> List[float]
                         with contextlib.suppress(Exception):
                             wandb.log({"lr": current_lr})
-                        logger.info(f"Step: {step}\n"
-                                    f"Avg. train loss: {metrics["train_loss"]}\n"
-                                    f"Avg. valid. loss: {metrics["eval_loss"]}\n"
+                        logger.info(f"Avg. train loss: {metrics["train_loss"]} | "
+                                    f"Avg. valid. loss: {metrics["eval_loss"]} | "
                                     f"Perplexity: {metrics["perplexity"]}\n"
                                     f"LR: {current_lr:.1e} | "
                                     f"VRAM usage: {metrics["vram_usage"]} GiB")
