@@ -35,7 +35,7 @@ logging:
 
 
 benchmark:
-  batch_size: 1
+  batch_size: 32
   tasks:
     - "arc_challenge"
     - "hellaswag"
