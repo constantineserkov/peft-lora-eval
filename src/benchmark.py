@@ -26,7 +26,7 @@ def _resolve_lm_eval_cache_path(
     if use_cache in (None, False):
         return None
 
-    if use_cache:
+    if use_cache is True:
         method = config_dict.get("active_method", "benchmark")
         model_name = config_dict.get("model", {}).get("model_name_or_path", "model")
         safe_model_name = model_name.replace("/", "_").replace("\\", "_")
@@ -61,6 +61,21 @@ def _resolve_lm_eval_cache_path(
     return cache_path
 
 
+def _resolve_lm_eval_seed(
+    benchmark_config: Dict[str, Any],
+    config_dict: Dict[str, Any],
+) -> int | None:
+    seed = benchmark_config.get("seed", config_dict["runtime"]["seed"])
+
+    if seed is None:
+        return None
+
+    if not isinstance(seed, int):
+        raise ValueError("benchmark.seed/runtime.seed must be an integer or null.")
+
+    return seed
+
+
 def run_lm_eval(
     model,
     tokenizer,
@@ -79,6 +94,7 @@ def run_lm_eval(
 
     with measure_runtime_and_peak_vram(device) as benchmark_stats:
         benchmark_config = config_dict["benchmark"]
+        seed = _resolve_lm_eval_seed(benchmark_config, config_dict)
 
         results = evaluator.simple_evaluate(
             model=lm,
@@ -91,9 +107,14 @@ def run_lm_eval(
                 metadata,
             ),
             limit=benchmark_config.get("limit"),
+            random_seed=seed,
+            numpy_random_seed=seed,
+            torch_random_seed=seed,
+            fewshot_random_seed=seed,
         )
 
     benchmark_stats["batch_size"] = batch_size
+    benchmark_stats["seed"] = seed
 
     return results, benchmark_stats
 

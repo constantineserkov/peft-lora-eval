@@ -7,7 +7,7 @@ import src.benchmark as benchmark
 
 def _benchmark_config(tmp_path):
     return {
-        "runtime": {"base_path": str(tmp_path)},
+        "runtime": {"base_path": str(tmp_path), "seed": 17},
         "model": {"model_name_or_path": "org/model"},
         "active_method": "qdora",
         "benchmark": {
@@ -53,6 +53,30 @@ def test_resolve_lm_eval_cache_path_rejects_unsupported_value(tmp_path):
         )
 
 
+def test_resolve_lm_eval_seed_uses_runtime_seed_by_default(tmp_path):
+    assert benchmark._resolve_lm_eval_seed({}, _benchmark_config(tmp_path)) == 17
+
+
+def test_resolve_lm_eval_seed_allows_benchmark_override(tmp_path):
+    assert (
+        benchmark._resolve_lm_eval_seed(
+            {"seed": 23},
+            _benchmark_config(tmp_path),
+        )
+        == 23
+    )
+
+
+def test_resolve_lm_eval_seed_allows_none_to_preserve_existing_rng_state(tmp_path):
+    assert (
+        benchmark._resolve_lm_eval_seed(
+            {"seed": None},
+            _benchmark_config(tmp_path),
+        )
+        is None
+    )
+
+
 def test_run_lm_eval_passes_cache_path_not_boolean(monkeypatch, tmp_path):
     config = _benchmark_config(tmp_path)
     config["benchmark"]["use_cache"] = True
@@ -84,3 +108,7 @@ def test_run_lm_eval_passes_cache_path_not_boolean(monkeypatch, tmp_path):
         tmp_path / "runs" / "run_test_1" / "qdora" / "lm_eval_cache" / "org_model"
     )
     assert not isinstance(captured["use_cache"], bool)
+    assert captured["random_seed"] == 17
+    assert captured["numpy_random_seed"] == 17
+    assert captured["torch_random_seed"] == 17
+    assert captured["fewshot_random_seed"] == 17
