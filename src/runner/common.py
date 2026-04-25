@@ -47,7 +47,7 @@ def init_run():
             "immutable": {},  # Parameters that are fixed for a run_#. e.g. random seed
         }
 
-    set_up_logging(run_dir / "run.log")
+    set_up_logging(run_dir / "run.log", level=args.log_level.upper())
     logger = get_logger(level=args.log_level.upper())
 
     device = resolve_device()
