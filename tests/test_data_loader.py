@@ -6,12 +6,25 @@ from transformers import AutoTokenizer
 
 from src.dataloader import (
     format_prompt,
+    load_alpaca_data,
     tokenize_supervised_causal_lm_batch,
     add_length,
     get_cleaned_sorted_dataset,
     get_dataloader,
     DataCollatorForCustomPadding,
 )
+
+
+class _LoadedDataset:
+    def __init__(self):
+        self.column_names = ["instruction", "input", "output"]
+
+    def remove_columns(self, column):
+        assert column == "input"
+        return self
+
+    def __len__(self):
+        return 2
 
 
 @pytest.fixture(scope="session")
@@ -34,6 +47,38 @@ def test_format_prompt(small_dataset):
     assert "prompt" in result
     assert len(result["prompt"]) == 2
     assert "###Instruction:" in result["prompt"][0]
+
+
+def test_load_alpaca_data_uses_full_train_split_when_subset_is_none(monkeypatch):
+    calls = {}
+
+    def fake_load_dataset(*args, **kwargs):
+        calls["args"] = args
+        calls["kwargs"] = kwargs
+        return _LoadedDataset()
+
+    monkeypatch.setattr("src.dataloader.load_dataset", fake_load_dataset)
+
+    load_alpaca_data("yahma/alpaca-cleaned", None)
+
+    assert calls["args"] == ("yahma/alpaca-cleaned",)
+    assert calls["kwargs"]["split"] == "train"
+
+
+def test_load_alpaca_data_uses_train_slice_when_subset_is_set(monkeypatch):
+    calls = {}
+
+    def fake_load_dataset(*args, **kwargs):
+        calls["args"] = args
+        calls["kwargs"] = kwargs
+        return _LoadedDataset()
+
+    monkeypatch.setattr("src.dataloader.load_dataset", fake_load_dataset)
+
+    load_alpaca_data("yahma/alpaca-cleaned", 100)
+
+    assert calls["args"] == ("yahma/alpaca-cleaned",)
+    assert calls["kwargs"]["split"] == "train[:100]"
 
 
 def test_tokenize_and_labels(tokenizer, small_dataset):

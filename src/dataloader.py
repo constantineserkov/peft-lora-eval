@@ -9,10 +9,11 @@ from src.model_utils import load_tokenizer
 logger = get_logger()
 
 
-def load_alpaca_data(dataset_name: str, data_subset: int) -> Dataset:
+def load_alpaca_data(dataset_name: str, data_subset: int | None) -> Dataset:
     logger.debug("Loading the alpaca dataset")
     # Load dataset
-    dataset = load_dataset(dataset_name, split=f"train[:{data_subset}]", streaming=False, cache_dir="../data/processed").remove_columns('input')
+    split = "train" if data_subset is None else f"train[:{data_subset}]"
+    dataset = load_dataset(dataset_name, split=split, streaming=False, cache_dir="../data/processed").remove_columns('input')
 
     # Log the dataset size
     logger.info(f"Loaded dataset '{dataset_name}' with {len(dataset)} examples.")
