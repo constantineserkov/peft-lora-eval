@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, call, patch
 
 import src.runner.pipeline as pipeline_module
-from src.runner.common import resolve_stages
+from src.runner.common import format_run_plan, resolve_stages
 
 
 def test_run_pipeline_reuses_cached_model_for_same_method(tmp_path):
@@ -133,3 +133,73 @@ def test_resolve_stages_returns_skipped_completed_tags():
 
     assert plan == [("qdora", "train"), ("qdora", "eval")]
     assert skipped == ["dora_train", "dora_eval"]
+
+
+def test_format_run_plan_includes_effective_run_details():
+    metadata = {
+        "run_id": "run_test_1",
+        "run_config": {
+            "methods": ["dora", "qdora"],
+            "stages": ["train", "eval", "bench"],
+            "dataset": {
+                "name": "yahma/alpaca-cleaned",
+                "subset": None,
+            },
+            "runtime": {
+                "seed": 17,
+            },
+        },
+    }
+
+    plan = [("qdora", "train"), ("qdora", "eval")]
+    skipped = ["dora_train", "dora_eval"]
+
+    assert format_run_plan(metadata, plan, skipped) == "\n".join(
+        [
+            "Run: run_test_1",
+            "Methods: dora, qdora",
+            "Requested stages: train, eval, bench",
+            "Will run: qdora_train, qdora_eval",
+            "Will skip: dora_train, dora_eval",
+            "Dataset: yahma/alpaca-cleaned, full train split",
+            "Seed: 17",
+        ]
+    )
+
+
+def test_run_pipeline_dry_run_stops_before_loading_model(tmp_path):
+    logger = MagicMock()
+    metadata = {
+        "run_id": "run_test_1",
+        "completed": ["dora_train", "dora_eval"],
+        "metadata_path": str(tmp_path / "metadata.json"),
+        "run_config": {
+            "methods": ["dora", "qdora"],
+            "stages": ["train", "eval"],
+            "dataset": {
+                "name": "yahma/alpaca-cleaned",
+                "subset": None,
+            },
+            "runtime": {
+                "dry_run": True,
+                "seed": 17,
+            },
+        },
+    }
+
+    with (
+        patch.object(pipeline_module, "init_run", return_value=(tmp_path, metadata, logger)),
+        patch.object(
+            pipeline_module,
+            "resolve_stages",
+            return_value=([("qdora", "train"), ("qdora", "eval")], ["dora_train", "dora_eval"]),
+        ),
+        patch.object(pipeline_module, "init_base_model") as init_base_model,
+        patch.object(pipeline_module, "create_comparison_tables") as create_comparison_tables,
+    ):
+        pipeline_module.run_pipeline()
+
+    init_base_model.assert_not_called()
+    create_comparison_tables.assert_not_called()
+    logger.info.assert_any_call("Skipping completed stage: %s", "dora_train")
+    logger.info.assert_any_call("Skipping completed stage: %s", "dora_eval")

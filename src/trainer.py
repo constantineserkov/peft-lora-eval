@@ -63,6 +63,14 @@ def train_model(
         start_epoch = checkpoint["epoch"]
         start_step = checkpoint["step"]
         best_loss = checkpoint["best_loss"]
+        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+        scaler.load_state_dict(checkpoint["scaler_state_dict"])
+        logger.info(
+            "Resuming training from checkpoint at epoch %s, step %s.",
+            start_epoch,
+            start_step,
+        )
     else:
         start_epoch = 1
         start_step = 0
@@ -91,13 +99,15 @@ def train_model(
 
         # Wrap the train loader with tqdm
         pbar = tqdm(train_loader, desc="Training", unit="batch")  # if is off on Jupyter, set position=0
+        ran_batches = False
 
         ### TRAIN ###
         for step, batch in enumerate(pbar):
-            if checkpoint:
+            if checkpoint and epoch == start_epoch:
                 if step <= start_step:
                     continue
             global_step += 1
+            ran_batches = True
             batch: Dict[str, torch.Tensor]
             input_ids = batch["input_ids"].to(device)
             attention_mask = batch["attention_mask"].to(device)
@@ -193,7 +203,7 @@ def train_model(
 
         # check for a leftover
         logger.debug(f"checking leftover. step == {step}")
-        if (step + 1) % g != 0:
+        if ran_batches and step is not None and (step + 1) % g != 0:
             scaler.unscale_(optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             scaler.step(optimizer)
@@ -201,8 +211,24 @@ def train_model(
             scheduler.step()
             optimizer.zero_grad()
 
+        if checkpoint and epoch == start_epoch and not ran_batches:
+            logger.info(
+                "Checkpoint already covered epoch %s through step %s. Continuing.",
+                epoch,
+                start_step,
+            )
+            if epoch == num_epochs:
+                save_checkpoint(
+                    model, optimizer, scheduler, scaler, epoch,
+                    step, best_loss, config, metadata, logger,
+                    final=True
+                )
+            gc.collect()
+            torch.cuda.empty_cache()
+            continue
+
         # Save final checkpoint
-        if global_step == (num_epochs * len(train_loader)):
+        if epoch == num_epochs:
             save_checkpoint(
                 model, optimizer, scheduler, scaler, epoch,
                 step, best_loss, config, metadata, logger,

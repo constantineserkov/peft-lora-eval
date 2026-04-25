@@ -87,6 +87,7 @@ def parse_args():
 
     parser.add_argument("--merge", action="store_true", help="Merge adapter into the base model for eval/inference")
     parser.add_argument("--use-small-model", action="store_true", help="Use gpt-2")
+    parser.add_argument("--dry-run", action="store_true", help="Print the resolved run plan and exit")
     return parser.parse_args()
 
 
@@ -136,6 +137,7 @@ def load_and_validate_run_config(args, logger):
         config["runtime"]["base_path"] = args.base_path
         config["runtime"]["merge"] = args.merge
         config["runtime"]["use_small_model"] = args.use_small_model
+        config["runtime"]["dry_run"] = getattr(args, "dry_run", False)
     return config
 
 

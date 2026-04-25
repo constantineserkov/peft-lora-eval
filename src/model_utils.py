@@ -39,12 +39,8 @@ def _get_quantization_config(method_quantization_config: Dict) -> Optional[BitsA
 def _get_lora_config(
     base_config: Dict,
     use_dora: bool = False,
-    from_checkpoint: Optional[Dict] = None,
 ) -> LoraConfig:
-    """Create LoraConfig either from scratch or from checkpoint."""
-    if from_checkpoint:
-        return from_checkpoint["peft_config"]  # Already a PeftConfig object
-
+    """Create LoraConfig from the current method config."""
     return LoraConfig(
         task_type=TaskType.CAUSAL_LM,
         inference_mode=False,
@@ -179,7 +175,6 @@ def configure_peft_model_for_training(
     peft_config = _get_lora_config(
         base_config=config["peft_config"],
         use_dora=use_dora,
-        from_checkpoint=checkpoint,
     )
 
     # 4. Wrap with PEFT

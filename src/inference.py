@@ -99,7 +99,7 @@ def run_inference(model: torch.nn.Module, tokenizer, metadata):
             logger.info(f"Inference metrics:\n{metrics}")
             wandb.log({"Inference metrics": metrics})
             logger.info(f"Exiting...")
-            sys.exit(1)
+            sys.exit(0)
 
         # Start per-prompt timing
         iter_start = time.perf_counter()

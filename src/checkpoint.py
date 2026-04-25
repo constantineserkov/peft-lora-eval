@@ -1,4 +1,5 @@
 import logging
+import pickle
 from typing import Dict, List, Set, Any, cast
 import os
 import torch.nn
@@ -50,7 +51,18 @@ def load_checkpoint(
         clean_checkpoints(checkpoint_dir)
         return None
 
-    return torch.load(checkpoint_path)
+    try:
+        checkpoint = torch.load(checkpoint_path, weights_only=True)
+    except pickle.UnpicklingError:
+        logger.warning(
+            "Checkpoint '%s' contains legacy non-tensor objects. Loading with "
+            "weights_only=False because it is a local project checkpoint.",
+            checkpoint_path,
+        )
+        checkpoint = torch.load(checkpoint_path, weights_only=False)
+
+    logger.info("Loaded checkpoint for method '%s': %s", active_method, checkpoint_path)
+    return checkpoint
 
 
 def save_best(
@@ -91,8 +103,9 @@ def save_checkpoint(
     os.makedirs(checkpoint_dir, exist_ok=True)
 
     checkpoint = {
+        "format_version": 2,
         "peft_model_state_dict": get_peft_model_state_dict(model),
-        "peft_config": model.config,
+        "peft_config": config.get("peft_config"),
         "optimizer_state_dict": optimizer.state_dict(),
         "scheduler_state_dict": scheduler.state_dict(),
         "scaler_state_dict": scaler.state_dict(),

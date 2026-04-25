@@ -23,14 +23,17 @@ def init_run():
 
     run_name = "run_" + args.run_id
     run_dir = Path(base_path) / "runs" / run_name
+    dry_run = getattr(args, "dry_run", False)
 
     metadata_path = run_dir / "metadata.json"
     if metadata_path.exists():
         metadata = json.loads(metadata_path.read_text())
-        metadata["attempt"] += 1
-        metadata["wc_attempt_start"] = wc_attempt_start
+        if not dry_run:
+            metadata["attempt"] += 1
+            metadata["wc_attempt_start"] = wc_attempt_start
     else:
-        run_dir.mkdir(parents=True, exist_ok=True)
+        if not dry_run:
+            run_dir.mkdir(parents=True, exist_ok=True)
         metadata = {
             "run_id": run_dir.name,
             "attempt": 1,
@@ -50,19 +53,23 @@ def init_run():
     set_up_logging(run_dir / "run.log", level=args.log_level.upper())
     logger = get_logger(level=args.log_level.upper())
 
-    device = resolve_device()
-    logger.info(f"Device: {device}")
-
     run_config = load_and_validate_run_config(args, logger)
-    set_seed(run_config["runtime"]["seed"], logger)
 
-    init_wandb(run_config, logger)
-    init_hf_auth(logger)
+    if not dry_run:
+        device = resolve_device()
+        logger.info(f"Device: {device}")
 
-    metadata["device"] = device
+        set_seed(run_config["runtime"]["seed"], logger)
+
+        init_wandb(run_config, logger)
+        init_hf_auth(logger)
+
+        metadata["device"] = device
     metadata["run_config"] = run_config
 
-    metadata_path.write_text(json.dumps(metadata, indent=2))
+    if not dry_run:
+        metadata_path.write_text(json.dumps(metadata, indent=2))
+
     return run_dir, metadata, logger
 
 
@@ -108,6 +115,27 @@ def resolve_stages(metadata) -> Tuple[List[Tuple[str, str]], List[str]]:
                 skipped.append(tag)
 
     return plan, skipped
+
+
+def format_run_plan(metadata, plan: List[Tuple[str, str]], skipped: List[str]) -> str:
+    run_config = metadata["run_config"]
+    dataset_config = run_config["dataset"]
+    subset = dataset_config.get("subset")
+    dataset_scope = "full train split" if subset is None else f"first {subset} examples"
+
+    will_run = [f"{method}_{stage}" for method, stage in plan]
+
+    return "\n".join(
+        [
+            f"Run: {metadata['run_id']}",
+            f"Methods: {', '.join(run_config['methods'])}",
+            f"Requested stages: {', '.join(run_config['stages'])}",
+            f"Will run: {', '.join(will_run) if will_run else 'none'}",
+            f"Will skip: {', '.join(skipped) if skipped else 'none'}",
+            f"Dataset: {dataset_config['name']}, {dataset_scope}",
+            f"Seed: {run_config['runtime']['seed']}",
+        ]
+    )
 
 
 def save_metadata(metadata):

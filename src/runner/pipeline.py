@@ -4,7 +4,7 @@ import torch.cuda
 import wandb
 from src.model_utils import init_base_model, cleanup_model_for_cache
 from src.utils import load_method_config, get_model_cache_key
-from src.runner.common import init_run, resolve_stages, save_metadata
+from src.runner.common import init_run, resolve_stages, save_metadata, format_run_plan
 from src.runner.train_runner import run_train
 from src.runner.eval_runner import run_eval
 from src.runner.bench_runner import run_bench
@@ -19,6 +19,10 @@ def run_pipeline():
         logger.info("Skipping completed stage: %s", tag)
 
     run_config = metadata["run_config"]
+
+    if run_config["runtime"].get("dry_run", False):
+        logger.info("Dry run plan:\n%s", format_run_plan(metadata, plan, skipped))
+        return
 
     cached_model = None
     cached_model_key = None
